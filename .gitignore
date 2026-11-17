@@ -1,0 +1,42 @@
+# Database
+*.db
+
+# Video dan gambar
+samples/
+*.mp4
+*.avi
+*.mkv
+*.mov
+*.jpg
+*.png
+
+# Konfigurasi lokal (berisi kredensial)
+config.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+venv/
+.venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Model YOLO (diunduh otomatis)
+*.pt
