@@ -1,8 +1,9 @@
 """
-simulate.py — Pembuat data simulasi untuk mengisi database.
+simulate.py — Pembuat data simulasi untuk mengisi database SQLite.
 
-Menghasilkan data kunjungan, sampel antrean, dan event realistis
-selama beberapa akhir pekan untuk menguji dashboard.
+Menghasilkan data kunjungan pintu, sesi duduk meja, sampel okupansi,
+sampel antrean kasir, riwayat kunjungan antrean, dan event alert realistis
+selama beberapa minggu untuk menguji dan mendemonstrasikan dashboard.
 """
 
 from __future__ import annotations
@@ -12,7 +13,15 @@ import os
 import random
 from datetime import datetime, timedelta
 
-from db import init_db, save_visit, save_queue_sample, save_event
+from db import (
+    init_db,
+    save_visit,
+    save_queue_sample,
+    save_queue_visit,
+    save_table_session,
+    save_occupancy_sample,
+    save_event,
+)
 
 
 def load_config(path: str = "config.json") -> dict:
@@ -27,7 +36,7 @@ def simulate(
     db_path: str | None = None,
     seed: int = 42,
 ):
-    """Buat data simulasi realistis.
+    """Buat data simulasi realistis untuk seluruh tabel.
 
     Args:
         num_weeks: jumlah minggu data yang dibuat
@@ -42,6 +51,8 @@ def simulate(
 
     max_people = config.get("queue_max_people", 5)
     max_wait = config.get("queue_max_wait_sec", 120)
+    tables_list = list(config.get("tables", {"Meja 1": [], "Meja 2": []}).keys())
+    total_tables = max(1, len(tables_list))
 
     conn = init_db(db_path)
 
@@ -53,7 +64,10 @@ def simulate(
     print(f"Membuat data simulasi {num_weeks} minggu mulai {base.strftime('%Y-%m-%d')}...")
 
     total_visits = 0
-    total_samples = 0
+    total_queue_samples = 0
+    total_queue_visits = 0
+    total_table_sessions = 0
+    total_occupancy_samples = 0
     total_events = 0
 
     for week in range(num_weeks):
@@ -66,10 +80,9 @@ def simulate(
 
             # Jam operasional: 08:00 - 22:00
             for hour in range(8, 22):
-                # Pola pengunjung per jam (lebih ramai di jam makan dan akhir pekan)
                 base_rate = _hourly_rate(hour, is_weekend)
 
-                # Simulasi kunjungan per jam
+                # 1. Simulasi kunjungan pintu masuk & keluar
                 num_visitors = max(0, int(random.gauss(base_rate, base_rate * 0.3)))
 
                 for _ in range(num_visitors):
@@ -78,35 +91,66 @@ def simulate(
                     ts = current_day.replace(hour=hour, minute=minute, second=second)
                     ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")
 
-                    # Kebanyakan orang masuk lalu keluar
                     save_visit(conn, "IN", ts_str)
                     total_visits += 1
 
-                    # Orang keluar setelah beberapa menit
-                    stay_minutes = random.randint(5, 90)
+                    # Sebagian besar pengunjung duduk di meja
+                    if random.random() < 0.75:
+                        table_name = random.choice(tables_list)
+                        sit_duration_min = random.randint(20, 90)
+                        sit_duration_sec = float(sit_duration_min * 60)
+                        end_sit = ts + timedelta(minutes=sit_duration_min)
+                        if end_sit.hour < 22:
+                            save_table_session(
+                                conn,
+                                table_name=table_name,
+                                start_ts=ts_str,
+                                end_ts=end_sit.strftime("%Y-%m-%d %H:%M:%S"),
+                                duration_sec=sit_duration_sec,
+                            )
+                            total_table_sessions += 1
+
+                    # Kunjungan antrean kasir (bayar sebelum keluar)
+                    if random.random() < 0.70:
+                        wait_sec = max(5.0, random.gauss(45.0, 20.0))
+                        q_start = ts + timedelta(minutes=random.randint(15, 80))
+                        q_end = q_start + timedelta(seconds=int(wait_sec))
+                        if q_end.hour < 22:
+                            save_queue_visit(
+                                conn,
+                                start_ts=q_start.strftime("%Y-%m-%d %H:%M:%S"),
+                                end_ts=q_end.strftime("%Y-%m-%d %H:%M:%S"),
+                                wait_sec=wait_sec,
+                            )
+                            total_queue_visits += 1
+
+                    # Orang keluar restoran
+                    stay_minutes = random.randint(20, 100)
                     exit_ts = ts + timedelta(minutes=stay_minutes)
                     if exit_ts.hour < 22:
                         exit_ts_str = exit_ts.strftime("%Y-%m-%d %H:%M:%S")
                         save_visit(conn, "OUT", exit_ts_str)
                         total_visits += 1
 
-                # Simulasi sampel antrean (tiap 5 menit)
+                # 2. Simulasi sampel antrean & okupansi (tiap 5 menit)
                 for minute in range(0, 60, 5):
                     ts = current_day.replace(hour=hour, minute=minute, second=0)
                     ts_str = ts.strftime("%Y-%m-%d %H:%M:%S")
 
-                    # Jumlah orang di antrean berkorelasi dengan keramaian
-                    queue_people = max(0, int(random.gauss(
-                        base_rate / 10, 2
-                    )))
-                    wait_sec = max(0, random.gauss(
-                        queue_people * 20, 15
-                    ))
+                    # Antrean kasir
+                    queue_people = max(0, int(random.gauss(base_rate / 10, 2)))
+                    wait_sec = max(0.0, random.gauss(queue_people * 20, 15))
 
                     save_queue_sample(conn, queue_people, wait_sec, ts_str)
-                    total_samples += 1
+                    total_queue_samples += 1
 
-                    # Simulasi alert jika antrean penuh
+                    # Okupansi meja
+                    ratio = min(1.0, max(0.0, random.gauss(base_rate / 60.0, 0.15)))
+                    occupied_tables = min(total_tables, int(round(ratio * total_tables)))
+                    save_occupancy_sample(conn, occupied_tables, total_tables, ts_str)
+                    total_occupancy_samples += 1
+
+                    # Alert antrean panjang
                     if queue_people >= max_people:
                         save_event(
                             conn,
@@ -116,6 +160,7 @@ def simulate(
                         )
                         total_events += 1
 
+                    # Alert waktu tunggu lama
                     if wait_sec >= max_wait:
                         save_event(
                             conn,
@@ -126,31 +171,26 @@ def simulate(
                         total_events += 1
 
     conn.close()
-    print(f"Simulasi selesai:")
-    print(f"  - {total_visits} kunjungan")
-    print(f"  - {total_samples} sampel antrean")
-    print(f"  - {total_events} event/alert")
+    print("Simulasi selesai:")
+    print(f"  - {total_visits:,} kunjungan pintu (IN/OUT)")
+    print(f"  - {total_table_sessions:,} sesi duduk meja (table_sessions)")
+    print(f"  - {total_occupancy_samples:,} sampel okupansi meja")
+    print(f"  - {total_queue_samples:,} sampel antrean kasir")
+    print(f"  - {total_queue_visits:,} riwayat kunjungan antrean (queue_visits)")
+    print(f"  - {total_events:,} alert & kejadian")
     print(f"Database: {db_path}")
 
 
 def _hourly_rate(hour: int, is_weekend: bool) -> float:
-    """Pola tingkat pengunjung per jam (lebih ramai jam makan & akhir pekan).
-
-    Returns:
-        rata-rata jumlah pengunjung per jam
-    """
-    # Pola dasar jam makan
+    """Pola tingkat pengunjung per jam."""
     patterns = {
         8: 10, 9: 15, 10: 20, 11: 35, 12: 55, 13: 50,
         14: 30, 15: 25, 16: 20, 17: 30, 18: 45, 19: 60,
         20: 50, 21: 25,
     }
     rate = patterns.get(hour, 15)
-
-    # Akhir pekan lebih ramai ~40%
     if is_weekend:
         rate = int(rate * 1.4)
-
     return rate
 
 

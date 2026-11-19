@@ -1,9 +1,13 @@
 """
-dashboard.py — Dashboard Streamlit untuk manajer.
+dashboard.py — Dashboard Streamlit untuk manajer restoran & pemantauan CCTV.
 
 Membaca data dari SQLite (hanya baca, tidak menulis).
-Menampilkan: pengunjung per jam, tren antrean, jam sibuk akhir pekan,
-dan saran kapan menambah pegawai.
+Menampilkan:
+- Pengunjung masuk/keluar per jam
+- Tren dan waktu tunggu antrean kasir
+- Okupansi meja dan rata-rata durasi duduk
+- Analisis jam sibuk akhir pekan berbasis persentil
+- Ringkasan harian dan saran penjadwalan staf via modul summary.py
 
 Jalankan: streamlit run dashboard.py
 """
@@ -20,11 +24,13 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
+from summary import generate_daily_summary
 
-# ── Konfigurasi halaman ───────────────────────────────────────
+
+# ── Konfigurasi Halaman ───────────────────────────────────────
 
 st.set_page_config(
-    page_title="Dashboard Pemantauan Pengunjung",
+    page_title="Dashboard Pemantauan Restoran & CCTV",
     page_icon="📊",
     layout="wide",
 )
@@ -44,46 +50,92 @@ def get_connection(db_path: str) -> sqlite3.Connection:
 
 
 def load_visits(conn: sqlite3.Connection) -> pd.DataFrame:
-    """Muat data kunjungan."""
-    df = pd.read_sql_query("SELECT ts, direction FROM visits ORDER BY ts", conn)
-    if not df.empty:
-        df["ts"] = pd.to_datetime(df["ts"])
-        df["hour"] = df["ts"].dt.hour
-        df["date"] = df["ts"].dt.date
-        df["dayofweek"] = df["ts"].dt.dayofweek
-    return df
+    """Muat data kunjungan pintu."""
+    try:
+        df = pd.read_sql_query("SELECT ts, direction FROM visits ORDER BY ts", conn)
+        if not df.empty:
+            df["ts"] = pd.to_datetime(df["ts"])
+            df["hour"] = df["ts"].dt.hour
+            df["date"] = df["ts"].dt.date
+            df["dayofweek"] = df["ts"].dt.dayofweek
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 
 def load_queue_samples(conn: sqlite3.Connection) -> pd.DataFrame:
-    """Muat data sampel antrean."""
-    df = pd.read_sql_query(
-        "SELECT ts, people_in_zone, max_wait_sec FROM queue_samples ORDER BY ts",
-        conn,
-    )
-    if not df.empty:
-        df["ts"] = pd.to_datetime(df["ts"])
-        df["hour"] = df["ts"].dt.hour
-        df["date"] = df["ts"].dt.date
-        df["dayofweek"] = df["ts"].dt.dayofweek
-    return df
+    """Muat data sampel antrean kasir."""
+    try:
+        df = pd.read_sql_query(
+            "SELECT ts, people_in_zone, max_wait_sec FROM queue_samples ORDER BY ts",
+            conn,
+        )
+        if not df.empty:
+            df["ts"] = pd.to_datetime(df["ts"])
+            df["hour"] = df["ts"].dt.hour
+            df["date"] = df["ts"].dt.date
+            df["dayofweek"] = df["ts"].dt.dayofweek
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
+def load_table_sessions(conn: sqlite3.Connection) -> pd.DataFrame:
+    """Muat data sesi duduk meja."""
+    try:
+        df = pd.read_sql_query(
+            "SELECT table_name, start_ts, end_ts, duration_sec FROM table_sessions ORDER BY start_ts",
+            conn,
+        )
+        if not df.empty:
+            df["start_ts"] = pd.to_datetime(df["start_ts"])
+            df["end_ts"] = pd.to_datetime(df["end_ts"])
+            df["hour"] = df["start_ts"].dt.hour
+            df["date"] = df["start_ts"].dt.date
+            df["dayofweek"] = df["start_ts"].dt.dayofweek
+            df["duration_min"] = df["duration_sec"] / 60.0
+        return df
+    except Exception:
+        return pd.DataFrame()
+
+
+def load_occupancy_samples(conn: sqlite3.Connection) -> pd.DataFrame:
+    """Muat data sampel okupansi meja."""
+    try:
+        df = pd.read_sql_query(
+            "SELECT ts, occupied, total FROM occupancy_samples ORDER BY ts",
+            conn,
+        )
+        if not df.empty:
+            df["ts"] = pd.to_datetime(df["ts"])
+            df["hour"] = df["ts"].dt.hour
+            df["date"] = df["ts"].dt.date
+            df["dayofweek"] = df["ts"].dt.dayofweek
+            df["ratio"] = df["occupied"] / df["total"].replace(0, 1)
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 
 def load_events(conn: sqlite3.Connection) -> pd.DataFrame:
     """Muat data event/alert."""
-    df = pd.read_sql_query("SELECT ts, event, detail FROM events ORDER BY ts", conn)
-    if not df.empty:
-        df["ts"] = pd.to_datetime(df["ts"])
-        df["hour"] = df["ts"].dt.hour
-        df["date"] = df["ts"].dt.date
-        df["dayofweek"] = df["ts"].dt.dayofweek
-    return df
+    try:
+        df = pd.read_sql_query("SELECT ts, event, detail FROM events ORDER BY ts", conn)
+        if not df.empty:
+            df["ts"] = pd.to_datetime(df["ts"])
+            df["hour"] = df["ts"].dt.hour
+            df["date"] = df["ts"].dt.date
+            df["dayofweek"] = df["ts"].dt.dayofweek
+        return df
+    except Exception:
+        return pd.DataFrame()
 
 
-# ── Halaman utama ─────────────────────────────────────────────
+# ── Halaman Utama ─────────────────────────────────────────────
 
 def main():
-    st.title("📊 Dashboard Pemantauan Pengunjung & Antrean")
-    st.caption("Sistem pemantauan pintu masuk dan antrean berbasis computer vision")
+    st.title("📊 Dashboard Asisten Manajer Restoran (CCTV)")
+    st.caption("Monitoring Pintu Masuk, Okupansi Meja, dan Antrean Kasir")
 
     config = load_config()
     db_path = config.get("db_path", "data.db")
@@ -99,18 +151,27 @@ def main():
     conn = get_connection(db_path)
     df_visits = load_visits(conn)
     df_queue = load_queue_samples(conn)
+    df_tables = load_table_sessions(conn)
+    df_occ = load_occupancy_samples(conn)
     df_events = load_events(conn)
 
-    if df_visits.empty:
-        st.warning("Belum ada data kunjungan. Jalankan monitor atau simulasi terlebih dahulu.")
+    if df_visits.empty and df_tables.empty:
+        st.warning("Belum ada data di database. Jalankan `python simulate.py` atau `python monitor.py` terlebih dahulu.")
         return
 
-    # ── Sidebar filter ────────────────────────────────────────
-    st.sidebar.header("🔧 Filter")
+    # ── Sidebar Filter ────────────────────────────────────────
+    st.sidebar.header("🔧 Pengaturan & Filter")
 
     # Filter tanggal
-    min_date = df_visits["date"].min()
-    max_date = df_visits["date"].max()
+    dates = []
+    if not df_visits.empty:
+        dates.extend([df_visits["date"].min(), df_visits["date"].max()])
+    if not df_tables.empty:
+        dates.extend([df_tables["date"].min(), df_tables["date"].max()])
+
+    min_date = min(dates) if dates else datetime.now().date()
+    max_date = max(dates) if dates else datetime.now().date()
+
     date_range = st.sidebar.date_input(
         "Rentang tanggal",
         value=(min_date, max_date),
@@ -122,249 +183,200 @@ def main():
     else:
         start_date = end_date = date_range
 
-    # Persentil untuk jam sibuk
     percentile = st.sidebar.slider(
         "Persentil jam sibuk", 50, 95, 75, 5,
-        help="Jam dianggap sibuk jika pengunjung ≥ persentil ini"
+        help="Jam dianggap sibuk jika pengunjung >= persentil ini"
     )
 
-    # Filter hari
     day_filter = st.sidebar.selectbox(
         "Filter hari",
         ["Semua", "Akhir pekan saja", "Sabtu", "Minggu", "Hari kerja"],
     )
 
-    # ── Terapkan filter ───────────────────────────────────────
-    mask_visits = (df_visits["date"] >= start_date) & (df_visits["date"] <= end_date)
-    mask_queue = pd.Series([True] * len(df_queue))
-    mask_events = pd.Series([True] * len(df_events))
-
-    if not df_queue.empty:
-        mask_queue = (df_queue["date"] >= start_date) & (df_queue["date"] <= end_date)
-    if not df_events.empty:
-        mask_events = (df_events["date"] >= start_date) & (df_events["date"] <= end_date)
-
+    # ── Terapkan Filter ───────────────────────────────────────
     day_map = {
         "Akhir pekan saja": lambda dow: dow >= 5,
         "Sabtu": lambda dow: dow == 5,
         "Minggu": lambda dow: dow == 6,
         "Hari kerja": lambda dow: dow < 5,
     }
-    if day_filter in day_map:
-        fn = day_map[day_filter]
-        mask_visits = mask_visits & df_visits["dayofweek"].apply(fn)
-        if not df_queue.empty:
-            mask_queue = mask_queue & df_queue["dayofweek"].apply(fn)
-        if not df_events.empty:
-            mask_events = mask_events & df_events["dayofweek"].apply(fn)
 
-    fv = df_visits[mask_visits]
-    fq = df_queue[mask_queue] if not df_queue.empty else df_queue
-    fe = df_events[mask_events] if not df_events.empty else df_events
+    def apply_filter(df: pd.DataFrame, ts_col: str = "date") -> pd.DataFrame:
+        if df.empty:
+            return df
+        mask = (df[ts_col] >= start_date) & (df[ts_col] <= end_date)
+        if day_filter in day_map:
+            mask = mask & df["dayofweek"].apply(day_map[day_filter])
+        return df[mask]
 
-    # ── Metrik ringkasan ──────────────────────────────────────
-    st.header("📈 Ringkasan")
-    col1, col2, col3, col4 = st.columns(4)
+    fv = apply_filter(df_visits)
+    fq = apply_filter(df_queue)
+    ft = apply_filter(df_tables)
+    focc = apply_filter(df_occ)
+    fe = apply_filter(df_events)
 
-    visitors_in = len(fv[fv["direction"] == "IN"])
-    visitors_out = len(fv[fv["direction"] == "OUT"])
+    # ── 1. Metrik Ringkasan Utama ─────────────────────────────
+    st.header("📈 Metrik Utama")
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    visitors_in = len(fv[fv["direction"] == "IN"]) if not fv.empty else 0
+    visitors_out = len(fv[fv["direction"] == "OUT"]) if not fv.empty else 0
     alert_count = len(fe) if not fe.empty else 0
 
     col1.metric("Pengunjung Masuk", f"{visitors_in:,}")
     col2.metric("Pengunjung Keluar", f"{visitors_out:,}")
     col3.metric("Total Alert", f"{alert_count:,}")
+
     if not fq.empty:
-        avg_queue = fq["people_in_zone"].mean()
-        col4.metric("Rata-rata Antrean", f"{avg_queue:.1f} orang")
+        col4.metric("Rata-rata Antrean", f"{fq['people_in_zone'].mean():.1f} org")
     else:
         col4.metric("Rata-rata Antrean", "N/A")
 
-    # ── Grafik pengunjung per jam ─────────────────────────────
-    st.header("👥 Pengunjung per Jam")
-
-    visitors_in_df = fv[fv["direction"] == "IN"]
-    if not visitors_in_df.empty:
-        hourly = visitors_in_df.groupby("hour").size().reindex(range(24), fill_value=0)
-        fig = px.bar(
-            x=hourly.index,
-            y=hourly.values,
-            labels={"x": "Jam", "y": "Jumlah Pengunjung Masuk"},
-            title="Distribusi Pengunjung Masuk per Jam",
-        )
-        fig.update_layout(xaxis_dtick=1)
-        st.plotly_chart(fig, use_container_width=True)
+    if not ft.empty:
+        col5.metric("Rata-rata Durasi Meja", f"{ft['duration_min'].mean():.0f} mnt")
+    elif not focc.empty:
+        col5.metric("Rata-rata Okupansi", f"{focc['ratio'].mean():.0%}")
     else:
-        st.info("Tidak ada data pengunjung untuk filter yang dipilih.")
+        col5.metric("Okupansi Meja", "N/A")
 
-    # ── Tren antrean ──────────────────────────────────────────
-    st.header("🧍 Tren Antrean")
+    st.markdown("---")
 
-    if not fq.empty:
-        col_a, col_b = st.columns(2)
+    # ── 2. Pintu Masuk & Antrean Kasir ────────────────────────
+    col_left, col_right = st.columns(2)
 
-        with col_a:
-            hourly_queue = fq.groupby("hour")["people_in_zone"].mean()
-            hourly_queue = hourly_queue.reindex(range(24), fill_value=0)
+    with col_left:
+        st.subheader("👥 Pengunjung Masuk per Jam")
+        if not fv.empty:
+            vin = fv[fv["direction"] == "IN"]
+            hourly_v = vin.groupby("hour").size().reindex(range(24), fill_value=0)
+            fig_v = px.bar(
+                x=hourly_v.index,
+                y=hourly_v.values,
+                labels={"x": "Jam", "y": "Jumlah Masuk"},
+                title="Pola Kunjungan Masuk (08:00–22:00)",
+            )
+            fig_v.update_layout(xaxis_dtick=1)
+            st.plotly_chart(fig_v, use_container_width=True)
+        else:
+            st.info("Tidak ada data kunjungan untuk filter ini.")
+
+    with col_right:
+        st.subheader("🧍 Tren Antrean Kasir per Jam")
+        if not fq.empty:
+            hourly_q = fq.groupby("hour")["people_in_zone"].mean().reindex(range(24), fill_value=0)
             fig_q = px.bar(
-                x=hourly_queue.index,
-                y=hourly_queue.values,
-                labels={"x": "Jam", "y": "Rata-rata Orang di Antrean"},
-                title="Rata-rata Panjang Antrean per Jam",
+                x=hourly_q.index,
+                y=hourly_q.values,
+                labels={"x": "Jam", "y": "Rata-rata Orang"},
+                title="Panjang Antrean Kasir per Jam",
             )
             fig_q.update_layout(xaxis_dtick=1)
             st.plotly_chart(fig_q, use_container_width=True)
+        else:
+            st.info("Tidak ada data antrean untuk filter ini.")
 
-        with col_b:
-            hourly_wait = fq.groupby("hour")["max_wait_sec"].mean()
-            hourly_wait = hourly_wait.reindex(range(24), fill_value=0)
-            fig_w = px.line(
-                x=hourly_wait.index,
-                y=hourly_wait.values,
-                labels={"x": "Jam", "y": "Rata-rata Waktu Tunggu Maks (detik)"},
-                title="Rata-rata Waktu Tunggu Terlama per Jam",
+    # ── 3. Okupansi Meja & Durasi Duduk ───────────────────────
+    st.markdown("---")
+    st.subheader("🪑 Pemantauan Meja Pengunjung")
+    col_t1, col_t2 = st.columns(2)
+
+    with col_t1:
+        if not focc.empty:
+            hourly_occ = focc.groupby("hour")["ratio"].mean().reindex(range(24), fill_value=0)
+            fig_occ = px.line(
+                x=hourly_occ.index,
+                y=hourly_occ.values * 100,
+                labels={"x": "Jam", "y": "Rasio Okupansi Meja (%)"},
+                title="Rata-rata Tingkat Keterisian Meja (%)",
                 markers=True,
             )
-            fig_w.update_layout(xaxis_dtick=1)
-            st.plotly_chart(fig_w, use_container_width=True)
-    else:
-        st.info("Tidak ada data antrean.")
-
-    # ── Analisis jam sibuk akhir pekan ────────────────────────
-    st.header("🔥 Analisis Jam Sibuk (Akhir Pekan)")
-
-    # Filter data akhir pekan saja
-    weekend_visits = df_visits[
-        (df_visits["dayofweek"] >= 5) &
-        (df_visits["date"] >= start_date) &
-        (df_visits["date"] <= end_date)
-    ]
-    weekend_events = pd.DataFrame()
-    if not df_events.empty:
-        weekend_events = df_events[
-            (df_events["dayofweek"] >= 5) &
-            (df_events["date"] >= start_date) &
-            (df_events["date"] <= end_date)
-        ]
-
-    # Cek jumlah akhir pekan
-    if not weekend_visits.empty:
-        unique_weekends = weekend_visits["date"].nunique()
-        num_weekend_days = unique_weekends
-
-        if num_weekend_days < 4:
-            st.warning(
-                f"⚠️ Data masih sedikit ({num_weekend_days} hari akhir pekan). "
-                "Saran jam sibuk mungkin belum bermakna. "
-                "Kumpulkan data minimal beberapa akhir pekan untuk tren yang akurat."
-            )
-
-        # Pengunjung masuk per jam di akhir pekan
-        wk_in = weekend_visits[weekend_visits["direction"] == "IN"]
-        hourly_wk = wk_in.groupby("hour").size().reindex(range(24), fill_value=0)
-
-        # Rata-rata per hari akhir pekan
-        if num_weekend_days > 0:
-            hourly_avg = hourly_wk / num_weekend_days
+            fig_occ.update_layout(xaxis_dtick=1)
+            st.plotly_chart(fig_occ, use_container_width=True)
         else:
-            hourly_avg = hourly_wk
+            st.info("Belum ada data sampel okupansi meja.")
 
-        # Alert per jam di akhir pekan
-        hourly_alerts = pd.Series(0, index=range(24))
-        if not weekend_events.empty:
-            alert_counts = weekend_events.groupby("hour").size()
-            for h in alert_counts.index:
-                hourly_alerts[h] = alert_counts[h]
-
-        # Rata-rata antrean per jam di akhir pekan
-        hourly_queue_avg = pd.Series(0.0, index=range(24))
-        if not df_queue.empty:
-            weekend_queue = df_queue[
-                (df_queue["dayofweek"] >= 5) &
-                (df_queue["date"] >= start_date) &
-                (df_queue["date"] <= end_date)
-            ]
-            if not weekend_queue.empty:
-                q_avg = weekend_queue.groupby("hour")["people_in_zone"].mean()
-                for h in q_avg.index:
-                    hourly_queue_avg[h] = q_avg[h]
-
-        # Tentukan jam sibuk
-        threshold = hourly_avg.quantile(percentile / 100)
-        busy_hours = []
-
-        for hour in range(24):
-            is_busy_visitors = hourly_avg.get(hour, 0) >= threshold
-            is_busy_alerts = hourly_alerts.get(hour, 0) >= 2
-            if is_busy_visitors or is_busy_alerts:
-                busy_hours.append({
-                    "jam": hour,
-                    "pengunjung_avg": hourly_avg.get(hour, 0),
-                    "antrean_avg": hourly_queue_avg.get(hour, 0),
-                    "alert": hourly_alerts.get(hour, 0),
-                    "alasan": [],
-                })
-                if is_busy_visitors:
-                    busy_hours[-1]["alasan"].append("pengunjung tinggi")
-                if is_busy_alerts:
-                    busy_hours[-1]["alasan"].append("banyak alert")
-
-        if busy_hours:
-            st.subheader("📋 Saran Penambahan Pegawai")
-
-            for bh in busy_hours:
-                jam = bh["jam"]
-                reasons = " dan ".join(bh["alasan"])
-                st.info(
-                    f"🕐 **Pukul {jam:02d}:00-{jam + 1:02d}:00**: "
-                    f"rata-rata {bh['pengunjung_avg']:.0f} pengunjung, "
-                    f"antrean {bh['antrean_avg']:.1f} orang, "
-                    f"{bh['alert']} alert. "
-                    f"**Tambah pegawai** ({reasons})."
-                )
-
-            # Visualisasi jam sibuk
-            fig_busy = go.Figure()
-            fig_busy.add_trace(go.Bar(
-                x=hourly_avg.index,
-                y=hourly_avg.values,
-                name="Pengunjung (rata-rata)",
-                marker_color=["red" if any(bh["jam"] == h for bh in busy_hours)
-                               else "steelblue" for h in range(24)],
-            ))
-            fig_busy.add_hline(
-                y=threshold,
-                line_dash="dash",
-                line_color="red",
-                annotation_text=f"Ambang P{percentile}",
+    with col_t2:
+        if not ft.empty:
+            table_counts = ft["table_name"].value_counts().reset_index()
+            table_counts.columns = ["Meja", "Total Sesi"]
+            fig_tbl = px.bar(
+                table_counts,
+                x="Meja",
+                y="Total Sesi",
+                title="Jumlah Sesi Pengunjung per Meja",
+                color="Meja",
             )
-            fig_busy.update_layout(
-                title="Jam Sibuk Akhir Pekan",
-                xaxis_title="Jam",
-                yaxis_title="Rata-rata Pengunjung Masuk",
-                xaxis_dtick=1,
-            )
-            st.plotly_chart(fig_busy, use_container_width=True)
+            st.plotly_chart(fig_tbl, use_container_width=True)
         else:
-            st.success("Tidak ada jam yang terdeteksi sibuk dengan ambang saat ini.")
+            st.info("Belum ada data sesi meja.")
+
+    # ── 4. Ringkasan Harian & Saran Staf via summary.py ───────
+    st.markdown("---")
+    st.header("📋 Ringkasan Harian & Saran Staf Manajer")
+
+    # Siapkan agregat per jam untuk modul summary.py
+    hourly_vis_dict = {}
+    if not fv.empty:
+        vin = fv[fv["direction"] == "IN"]
+        hourly_vis_dict = vin.groupby("hour").size().to_dict()
+
+    hourly_occ_dict = {}
+    if not focc.empty:
+        hourly_occ_dict = focc.groupby("hour")["ratio"].mean().to_dict()
+
+    hourly_q_dict = {}
+    if not fq.empty:
+        hourly_q_dict = fq.groupby("hour")["people_in_zone"].mean().to_dict()
+
+    hourly_alert_dict = {}
+    if not fe.empty:
+        hourly_alert_dict = fe.groupby("hour").size().to_dict()
+
+    num_days = max(1, (end_date - start_date).days + 1) if isinstance(start_date, datetime) or hasattr(start_date, "day") else 1
+
+    summary_result = generate_daily_summary(
+        hourly_visitors=hourly_vis_dict,
+        hourly_occupancy_ratio=hourly_occ_dict,
+        hourly_queue_avg=hourly_q_dict,
+        hourly_alerts=hourly_alert_dict,
+        num_days_sample=num_days,
+        percentile=percentile,
+    )
+
+    if summary_result["warning"]:
+        st.warning(f"⚠️ {summary_result['warning']}")
+
+    st.success(f"**Ringkasan**: {summary_result['summary_text']}")
+
+    if summary_result["busy_hours"]:
+        st.subheader("💡 Jadwal Tambahan Staf yang Disarankan:")
+        for bh in summary_result["busy_hours"]:
+            h = bh["hour"]
+            reasons = ", ".join(bh["reasons"])
+            st.info(
+                f"🕐 **Pukul {h:02d}:00–{h + 1:02d}:00**: "
+                f"rata-rata {bh['visitors']} tamu, antrean {bh['queue_avg']:.1f} orang ({reasons}). "
+                f"**Disarankan: Tambah 1 pegawai kasir/pelayan**."
+            )
     else:
-        st.info("Tidak ada data akhir pekan untuk dianalisis.")
+        st.info("Operasional stabil: belum ada jam yang melebihi ambang batas sibuk.")
 
-    # ── Tabel event terbaru ───────────────────────────────────
-    st.header("🔔 Event/Alert Terbaru")
-
+    # ── 5. Tabel Event & Alert Terbaru ────────────────────────
+    st.markdown("---")
+    st.subheader("🔔 Log Alert & Kejadian Terbaru")
     if not fe.empty:
         recent = fe.sort_values("ts", ascending=False).head(50)
         st.dataframe(
             recent[["ts", "event", "detail"]].rename(columns={
                 "ts": "Waktu",
-                "event": "Event",
-                "detail": "Detail",
+                "event": "Jenis Event",
+                "detail": "Keterangan Detail",
             }),
             use_container_width=True,
             hide_index=True,
         )
     else:
-        st.info("Belum ada event/alert.")
+        st.info("Belum ada alert yang tercatat.")
 
 
 if __name__ == "__main__":
