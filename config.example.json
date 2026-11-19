@@ -1,0 +1,50 @@
+{
+    "source": "samples/contoh.mp4",
+
+    "line": {
+        "pt1": [300, 400],
+        "pt2": [900, 400],
+        "in_direction": "down"
+    },
+
+    "queue_zone": [
+        [100, 300],
+        [500, 300],
+        [500, 600],
+        [100, 600]
+    ],
+
+    "queue_max_people": 5,
+    "queue_max_wait_sec": 120,
+    "queue_min_dwell_sec": 5,
+    "alert_cooldown_sec": 60,
+    "lost_grace_sec": 3,
+    "queue_sample_interval_sec": 30,
+
+    "tables": {
+        "Meja 1": [
+            [600, 100],
+            [850, 100],
+            [850, 300],
+            [600, 300]
+        ],
+        "Meja 2": [
+            [600, 350],
+            [850, 350],
+            [850, 550],
+            [600, 550]
+        ]
+    },
+    "table_min_dwell_sec": 30,
+    "table_leave_grace_sec": 20,
+    "occupancy_sample_interval_sec": 60,
+
+    "yolo_model": "yolov8n.pt",
+    "confidence": 0.4,
+    "tracker": "bytetrack.yaml",
+
+    "telegram_token_env": "TELEGRAM_TOKEN",
+    "telegram_chat_id_env": "TELEGRAM_CHAT_ID",
+
+    "db_path": "data.db"
+}

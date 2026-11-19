@@ -65,12 +65,14 @@ class QueueMonitor:
         max_wait_sec: float = 120.0,
         alert_cooldown_sec: float = 60.0,
         lost_grace_sec: float = 3.0,
+        min_dwell_sec: float = 5.0,
     ):
         self.zone_polygon = zone_polygon
         self.max_people = max_people
         self.max_wait_sec = max_wait_sec
         self.alert_cooldown_sec = alert_cooldown_sec
         self.lost_grace_sec = lost_grace_sec
+        self.min_dwell_sec = min_dwell_sec
 
         # Waktu masuk zona per ID
         self._enter_time: dict[int, float] = {}
@@ -78,6 +80,8 @@ class QueueMonitor:
         self._last_seen: dict[int, float] = {}
         # Waktu alert terakhir per jenis alert
         self._last_alert_time: dict[str, float] = {}
+        # Kunjungan antrean yang selesai dan memenuhi min_dwell_sec
+        self._completed_visits: list[dict] = []
 
     def update(
         self,
@@ -114,8 +118,17 @@ class QueueMonitor:
                 stale_ids.append(track_id)
 
         for track_id in stale_ids:
-            self._enter_time.pop(track_id, None)
-            self._last_seen.pop(track_id, None)
+            enter_t = self._enter_time.pop(track_id, None)
+            last_t = self._last_seen.pop(track_id, None)
+            if enter_t is not None and last_t is not None:
+                wait_sec = last_t - enter_t
+                if wait_sec >= self.min_dwell_sec:
+                    self._completed_visits.append({
+                        "track_id": track_id,
+                        "start_time": enter_t,
+                        "end_time": last_t,
+                        "wait_sec": wait_sec,
+                    })
 
         # Hitung jumlah orang di zona (termasuk yang dalam grace period)
         people_count = len(self._enter_time)
@@ -178,6 +191,16 @@ class QueueMonitor:
             dict {track_id: waktu_tunggu_detik}
         """
         return {tid: now - t for tid, t in self._enter_time.items()}
+
+    def pop_completed_visits(self) -> list[dict]:
+        """Ambil dan kosongkan antrean sesi kunjungan kasir yang sudah selesai.
+
+        Returns:
+            list dict: [{"track_id": int, "start_time": float, "end_time": float, "wait_sec": float}, ...]
+        """
+        visits = self._completed_visits
+        self._completed_visits = []
+        return visits
 
     def cleanup_old(self, now: float, max_age: float = 300.0):
         """Bersihkan data alert lama."""
