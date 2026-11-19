@@ -176,3 +176,44 @@ class TestGetStatus:
         status = monitor.get_status(now=10.0)
         assert status["people_count"] == 2
         assert status["max_wait_sec"] == pytest.approx(10.0, abs=0.1)
+
+
+class TestQueueVisits:
+    """Pencatatan sesi kunjungan antrean (queue_visits) dan filter min_dwell_sec."""
+
+    def test_orang_lewat_sebentar_tidak_dicatat(self, monitor):
+        """Orang melintas di zona kasir < min_dwell_sec (default 5s) tidak dicatat ke visits."""
+        # Masuk t=0, keluar t=2 (< 5s)
+        monitor.update([(1, (50, 50))], now=0.0)
+        monitor.update([(1, (50, 50))], now=2.0)
+        monitor.update([], now=3.0)
+
+        # Setelah grace period (lost_grace_sec=2s), di t=5.0 ID dihapus
+        monitor.update([], now=5.0)
+
+        visits = monitor.pop_completed_visits()
+        assert visits == [], "Orang melintas < min_dwell_sec seharusnya tidak dicatat ke visits!"
+
+    def test_sesi_antrean_lengkap_dicatat(self, monitor):
+        """Orang mengantre >= min_dwell_sec lalu pergi -> dicatat ke queue_visits."""
+        # Masuk t=0, mengantre sampai t=12 (>= 5s)
+        monitor.update([(1, (50, 50))], now=0.0)
+        monitor.update([(1, (50, 50))], now=6.0)
+        monitor.update([(1, (50, 50))], now=12.0)
+
+        # Pergi setelah t=12
+        monitor.update([], now=13.0)
+
+        # Setelah grace period di t=15 (> 12 + 2)
+        monitor.update([], now=15.0)
+
+        visits = monitor.pop_completed_visits()
+        assert len(visits) == 1
+        v = visits[0]
+        assert v["track_id"] == 1
+        assert v["start_time"] == 0.0
+        assert v["end_time"] == 12.0
+        assert v["wait_sec"] == pytest.approx(12.0, abs=0.1)
+
+        # Pastikan list dikosongkan setelah di-pop
+        assert monitor.pop_completed_visits() == []
