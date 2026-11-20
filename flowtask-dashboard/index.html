@@ -3,11 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VisionCCTV — Pemantauan Pintu Masuk & Antrean</title>
-  <!-- Google Fonts: Plus Jakarta Sans & Inter -->
+  <title>VisionCCTV Resto — Asisten Manajer Restoran Berbasis CCTV</title>
+  <!-- Google Fonts: Plus Jakarta Sans & Inter (Non-blocking fallback to system fonts) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"></noscript>
   <!-- Stylesheet -->
   <link rel="stylesheet" href="css/style.css">
 </head>
@@ -17,30 +18,8 @@
   <div class="bg-blob-tl"></div>
   <div class="bg-blob-br"></div>
 
-  <!-- Hero Header (di luar frame aplikasi) -->
-  <header class="hero-wrapper">
-    <div class="hero-left">
-      <div class="eyebrow">
-        <span>SISTEM COMPUTER VISION RESTORAN & HOTEL</span>
-      </div>
-      <h1 class="hero-title">Pemantauan CCTV & <span>Analisis Antrean</span></h1>
-      <p class="hero-tagline">Penghitung Pengunjung Masuk/Keluar, Manajemen Antrean Kasir & Rekomendasi Jam Sibuk.</p>
-    </div>
-    
-    <div class="hero-right-status">
-      <div class="status-pill-badge">
-        <span class="live-pulse"></span>
-        <span>BARDI PTZ IP Camera (ONVIF RTSP)</span>
-      </div>
-      <div class="status-pill-badge secondary">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-        <span>YOLOv8 + ByteTrack ID</span>
-      </div>
-    </div>
-  </header>
-
-  <!-- Main App Frame -->
-  <div class="app-container">
+  <!-- Main App Frame (Full-Width Modern Dashboard) -->
+  <div class="app-container" id="dashboard-overview">
     
     <!-- Sidebar -->
     <aside class="sidebar">
@@ -53,36 +32,41 @@
 
       <nav class="sidebar-nav">
         <!-- 1. Dashboard Utama -->
-        <a href="#dashboard" class="nav-item active" data-section="dashboard">
+        <a href="#dashboard-overview" class="nav-item active" data-section="dashboard">
           <svg viewBox="0 0 24 24"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
           <span>Dashboard Utama</span>
         </a>
         <!-- 2. Pemantauan CCTV -->
-        <a href="#cctv" class="nav-item" data-section="cctv">
+        <a href="#cctv-section" class="nav-item" data-section="cctv">
           <svg viewBox="0 0 24 24"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
           <span>Monitoring Kamera</span>
         </a>
-        <!-- 3. Lalu Lintas Pengunjung -->
-        <a href="#visitors" class="nav-item" data-section="visitors">
+        <!-- 3. Lalu Lintas Pengunjung Pintu -->
+        <a href="#visitors-section" class="nav-item" data-section="visitors">
           <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="16 11 18 13 22 9"/></svg>
           <span>Penghitung Pintu</span>
         </a>
-        <!-- 4. Antrean Kasir -->
-        <a href="#queue" class="nav-item" data-section="queue">
+        <!-- 4. Okupansi Meja Pengunjung (Baru) -->
+        <a href="#tables-section" class="nav-item" data-section="tables">
+          <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="6" rx="2"/><path d="M5 12v7"/><path d="M19 12v7"/><path d="M9 12v3"/><path d="M15 12v3"/></svg>
+          <span>Okupansi Meja Resto</span>
+        </a>
+        <!-- 5. Antrean Kasir -->
+        <a href="#queue-section" class="nav-item" data-section="queue">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           <span>Antrean & Waktu Tunggu</span>
         </a>
-        <!-- 5. Jam Sibuk & Rekomendasi -->
-        <a href="#busy-hours" class="nav-item" data-section="busy-hours">
+        <!-- 6. Jam Sibuk & Rekomendasi -->
+        <a href="#busy-hours-section" class="nav-item" data-section="busy-hours">
           <svg viewBox="0 0 24 24"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>
           <span>Jam Sibuk Akhir Pekan</span>
         </a>
-        <!-- 6. Riwayat Alert -->
-        <a href="#alerts" class="nav-item" data-section="alerts">
+        <!-- 7. Riwayat Alert -->
+        <a href="#alerts-section" class="nav-item" data-section="alerts">
           <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
           <span>Log Alert & Telegram</span>
         </a>
-        <!-- 7. Konfigurasi Sistem -->
+        <!-- 8. Konfigurasi Sistem -->
         <a href="#config" class="nav-item" id="btn-nav-config">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Konfigurasi (config.json)</span>
@@ -103,15 +87,15 @@
         <div class="device-meta-list">
           <div class="device-meta-row">
             <span>Posisi PTZ:</span>
-            <span class="meta-status-badge">Terkunci</span>
+            <span class="meta-status-badge">Terkunci (3 Zona)</span>
           </div>
           <div class="device-meta-row">
-            <span>Codec Stream:</span>
+            <span>Codec & FPS:</span>
             <span>H.264 (25 FPS)</span>
           </div>
           <div class="device-meta-row">
-            <span>Telegram Alert:</span>
-            <span class="meta-status-active">Aktif</span>
+            <span>Privasi (UU PDP):</span>
+            <span class="meta-status-active">No Wajah/ID</span>
           </div>
         </div>
       </div>
@@ -124,7 +108,7 @@
       <header class="topbar">
         <div class="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input type="text" id="search-input" placeholder="Cari data pengunjung, alert, atau jam..." autocomplete="off">
+          <input type="text" id="search-input" placeholder="Cari data pengunjung, alert, meja, atau jam..." autocomplete="off">
         </div>
 
         <div class="topbar-actions">
@@ -133,20 +117,50 @@
             <span>Kamera Online</span>
           </div>
 
-          <button class="btn-icon" id="notif-btn" aria-label="Notifikasi Alert" title="Daftar Alert Antrean Terkini">
+          <button class="btn-icon" id="notif-btn" aria-label="Notifikasi Alert" title="Daftar Alert Antrean & Meja Terkini">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
             <span class="badge-dot" id="notif-dot"></span>
           </button>
 
           <div class="user-profile">
-            <img class="user-avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Manajer Operasional">
+            <svg class="user-avatar" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-label="Manajer Operasional">
+              <circle cx="18" cy="18" r="18" fill="#EAF1FE"/>
+              <circle cx="18" cy="14" r="6" fill="#2563EB"/>
+              <path d="M7 32C7 26 12 23 18 23C24 23 29 26 29 32" fill="#2563EB"/>
+            </svg>
             <div class="user-info">
               <span class="user-name">Manajer Restoran</span>
-              <span class="user-role">Pemantauan & Operasional</span>
+              <span class="user-role">Sistem Pendukung Keputusan</span>
             </div>
           </div>
         </div>
       </header>
+
+      <!-- Hero Header & Status Banner (Full-Width Header) -->
+      <section class="hero-wrapper">
+        <div class="hero-left">
+          <div class="eyebrow">
+            <span>SISTEM COMPUTER VISION ASISTEN MANAJER RESTORAN (1 KAMERA CCTV)</span>
+          </div>
+          <h1 class="hero-title">Pemantauan CCTV & <span>Analisis Operasional</span></h1>
+          <p class="hero-tagline">Monitoring 3 Zona: Penghitung Pintu Masuk, Okupansi Meja Pengunjung & Antrean Kasir.</p>
+        </div>
+        
+        <div class="hero-right-status">
+          <div class="status-pill-badge">
+            <span class="live-pulse"></span>
+            <span>BARDI PTZ IP Camera (ONVIF RTSP)</span>
+          </div>
+          <div class="status-pill-badge secondary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            <span>YOLOv8n + ByteTrack ID</span>
+          </div>
+          <div class="status-pill-badge telegram-badge">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+            <span>Telegram Alert Aktif</span>
+          </div>
+        </div>
+      </section>
 
       <!-- Content Area -->
       <div class="content-area">
@@ -155,28 +169,26 @@
         <div class="greeting-bar">
           <div class="greeting-text">
             <h1>Halo, Manajer Operasional! 👋</h1>
-            <p>Pemantauan pintu masuk dan antrean berbasis computer vision real-time.</p>
+            <p>Pemantauan 3 zona restoran (pintu masuk, okupansi meja, dan antrean kasir) berbasis computer vision real-time.</p>
           </div>
 
           <div class="filter-controls-group">
             <!-- Filter Hari -->
             <select class="filter-dropdown" id="filter-day-select">
-              <option value="all">Semua Hari</option>
+              <option value="all">Semua Hari (28 Hari)</option>
               <option value="weekend" selected>Akhir Pekan (Sabtu & Minggu)</option>
-              <option value="saturday">Sabtu Saja</option>
-              <option value="sunday">Minggu Saja</option>
               <option value="weekday">Hari Kerja (Senin–Jumat)</option>
             </select>
 
             <!-- Rentang Tanggal -->
-            <button class="date-picker-btn" id="date-picker-btn">
+            <button class="date-picker-btn" id="date-picker-btn" title="Klik untuk informasi rentang dataset">
               <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
               <span id="date-range-display">19 Okt 2026 – 15 Nov 2026</span>
             </button>
           </div>
         </div>
 
-        <!-- Row 1: 4 KPI Cards (Data Riil Database) -->
+        <!-- Row 1: 5 KPI Cards (Mencakup 3 Zona Restoran) -->
         <section class="kpi-grid" id="kpi-grid">
           <!-- 1. Pengunjung Masuk -->
           <div class="card kpi-card">
@@ -185,10 +197,10 @@
             </div>
             <div class="kpi-details">
               <span class="kpi-label">Pengunjung Masuk (IN)</span>
-              <span class="kpi-value" id="kpi-in">14,684</span>
+              <span class="kpi-value" id="kpi-in">29,588</span>
               <div class="kpi-trend">
-                <span class="trend-badge positive">↑ 14.8%</span>
-                <span class="trend-subtext">Total melintas garis masuk</span>
+                <span class="trend-badge positive">Garis Pintu</span>
+                <span class="trend-subtext">Total melintas masuk</span>
               </div>
             </div>
           </div>
@@ -200,54 +212,69 @@
             </div>
             <div class="kpi-details">
               <span class="kpi-label">Pengunjung Keluar (OUT)</span>
-              <span class="kpi-value" id="kpi-out">13,972</span>
+              <span class="kpi-value" id="kpi-out">27,929</span>
               <div class="kpi-trend">
-                <span class="trend-badge neutral">Okupansi Saat Ini</span>
-                <span class="trend-subtext" id="kpi-occupancy">+712 orang di dalam</span>
+                <span class="trend-badge neutral">Garis Pintu</span>
+                <span class="trend-subtext">Total melintas keluar</span>
               </div>
             </div>
           </div>
 
-          <!-- 3. Rata-rata Orang di Antrean -->
+          <!-- 3. Okupansi Meja Restoran (Baru) -->
+          <div class="card kpi-card">
+            <div class="kpi-icon-wrap" style="background-color: #0EA5E9;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="6" width="18" height="6" rx="2"/><path d="M5 12v7"/><path d="M19 12v7"/><path d="M9 12v3"/><path d="M15 12v3"/></svg>
+            </div>
+            <div class="kpi-details">
+              <span class="kpi-label">Okupansi Meja Resto</span>
+              <span class="kpi-value" id="kpi-table-occ">60.2%</span>
+              <div class="kpi-trend">
+                <span class="trend-badge positive">10,509 Sesi</span>
+                <span class="trend-subtext" id="kpi-table-sub">Rata-rata 54.4 menit</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Rata-rata Antrean Kasir -->
           <div class="card kpi-card">
             <div class="kpi-icon-wrap" style="background-color: var(--color-warning);">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
             </div>
             <div class="kpi-details">
               <span class="kpi-label">Rata-rata Antrean Kasir</span>
-              <span class="kpi-value" id="kpi-queue">3.4 <small style="font-size:14px;font-weight:500;">orang</small></span>
+              <span class="kpi-value" id="kpi-queue">3.4 <small style="font-size:14px;font-weight:500;">org</small></span>
               <div class="kpi-trend">
-                <span class="trend-badge neutral">Puncak Maksimum</span>
+                <span class="trend-badge neutral">Puncak Maks</span>
                 <span class="trend-subtext">12 orang (Ambang: 5)</span>
               </div>
             </div>
           </div>
 
-          <!-- 4. Total Alert Antrean -->
+          <!-- 5. Total Alert Tercatat -->
           <div class="card kpi-card">
             <div class="kpi-icon-wrap" style="background-color: var(--color-danger);">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
             </div>
             <div class="kpi-details">
               <span class="kpi-label">Total Alert Antrean</span>
-              <span class="kpi-value" id="kpi-alerts">2,257</span>
+              <span class="kpi-value" id="kpi-alerts">4,551</span>
               <div class="kpi-trend">
-                <span class="trend-badge negative">Terkirim ke Telegram</span>
-                <span class="trend-subtext">Cooldown 60 detik</span>
+                <span class="trend-badge negative">Telegram Cooldown</span>
+                <span class="trend-subtext">Jeda 60 detik per alert</span>
               </div>
             </div>
           </div>
         </section>
 
-        <!-- Row 2: 3 Cards (Live CCTV Simulation + Distribusi Kunjungan + Status Antrean Saat Ini) -->
-        <section class="row-3-cols">
+        <!-- Row 2: 3 Cards (Live CCTV Simulation + Funnel Kunjungan + Status Antrean Kasir) -->
+        <section class="row-3-cols" id="cctv-section">
           
-          <!-- Card 1: Live CCTV Simulator & Virtual Overlay -->
+          <!-- Card 1: Live CCTV Simulator & Virtual Zone Overlay (3 ZONA TANPA TUMPANG TINDIH) -->
           <div class="card">
             <div class="card-header">
               <div class="card-title">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M23 7l-7 5 7 5V7z"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
-                <span>Live Feed & Virtual Zone (BARDI PTZ)</span>
+                <span>Live Feed 3 Zona (BARDI PTZ Cam)</span>
               </div>
               <span class="live-stream-badge">LIVE 25 FPS</span>
             </div>
@@ -256,37 +283,62 @@
             <div class="cctv-viewport" id="cctv-viewport">
               <div class="cctv-screen-sim">
                 <div class="cctv-floor-lines"></div>
-                
-                <!-- Virtual Line (pt1: 300, 400 ke pt2: 900, 400) -->
-                <div class="virtual-line-overlay">
-                  <div class="virtual-line-bar">
-                    <span class="line-label-in">↓ IN (Masuk)</span>
-                    <span class="line-label-title">GARIS HITUNG PINTU</span>
-                    <span class="line-label-out">↑ OUT (Keluar)</span>
-                  </div>
-                </div>
 
-                <!-- Queue Zone Polygon (100,300 to 500,600) -->
+                <!-- 1. ZONA KASIR (Kiri Atas, tanpa tumpang tindih) -->
                 <div class="queue-zone-overlay">
                   <div class="zone-badge">ZONA ANTREAN KASIR</div>
                   <div class="person-sim-box person-1">
-                    <span class="person-id">ID: 104</span>
+                    <span class="person-id">ID:104</span>
                   </div>
                   <div class="person-sim-box person-2">
-                    <span class="person-id">ID: 108</span>
+                    <span class="person-id">ID:108</span>
                   </div>
                   <div class="person-sim-box person-3">
-                    <span class="person-id">ID: 112</span>
+                    <span class="person-id">ID:112</span>
                   </div>
                   <div class="person-sim-box person-4">
-                    <span class="person-id">ID: 115</span>
+                    <span class="person-id">ID:115</span>
+                  </div>
+                </div>
+
+                <!-- 2. ZONA MEJA PENGUNJUNG (Kanan Atas & Kanan Bawah) -->
+                <!-- Meja 1 -->
+                <div class="table-zone-overlay table-zone-1">
+                  <div class="table-zone-badge">MEJA 1 • TERISI</div>
+                  <div class="table-center-mark">🪑 Meja 1</div>
+                  <div class="person-sim-box table-person person-table-1">
+                    <span class="person-id">ID:201</span>
+                  </div>
+                  <div class="person-sim-box table-person person-table-2">
+                    <span class="person-id">ID:202</span>
+                  </div>
+                </div>
+
+                <!-- Meja 2 -->
+                <div class="table-zone-overlay table-zone-2">
+                  <div class="table-zone-badge">MEJA 2 • TERISI</div>
+                  <div class="table-center-mark">🪑 Meja 2</div>
+                  <div class="person-sim-box table-person person-table-3">
+                    <span class="person-id">ID:205</span>
+                  </div>
+                  <div class="person-sim-box table-person person-table-4">
+                    <span class="person-id">ID:206</span>
+                  </div>
+                </div>
+
+                <!-- 3. GARIS VIRTUAL PINTU MASUK (Bawah, melintang pintu masuk) -->
+                <div class="virtual-line-overlay">
+                  <div class="virtual-line-bar">
+                    <span class="line-label-in">↓ IN (Masuk)</span>
+                    <span class="line-label-title">GARIS PINTU UTAMA</span>
+                    <span class="line-label-out">↑ OUT (Keluar)</span>
                   </div>
                 </div>
 
                 <!-- Camera Info Watermark -->
                 <div class="cctv-watermark">
-                  <span>CAM-01 • LOBBY RESTO</span>
-                  <span id="cctv-timestamp">2026-11-17 16:10:24</span>
+                  <span>CAM-01 • BARDI PTZ (POSISI TERKUNCI)</span>
+                  <span id="cctv-timestamp">2026-11-19 16:15:00</span>
                 </div>
               </div>
             </div>
@@ -294,21 +346,21 @@
             <div class="cctv-controls-footer">
               <div class="cctv-stat-item">
                 <span class="cctv-stat-label">Model Deteksi:</span>
-                <span class="cctv-stat-val">YOLOv8n Person</span>
+                <span class="cctv-stat-val">YOLOv8n Person Class</span>
               </div>
               <div class="cctv-stat-item">
-                <span class="cctv-stat-label">Pelacak:</span>
-                <span class="cctv-stat-val">ByteTrack (Persist)</span>
+                <span class="cctv-stat-label">Pelacak Objek:</span>
+                <span class="cctv-stat-val">ByteTrack (Persist ID)</span>
               </div>
               <button class="btn-sm-outline" id="btn-toggle-sim">Simulasi Gerak</button>
             </div>
           </div>
 
-          <!-- Card 2: Distribusi Kunjungan (Donut Chart) -->
+          <!-- Card 2: Distribusi & Funnel Alur Kunjungan -->
           <div class="card">
             <div class="card-header">
-              <h2 class="card-title">Distribusi Kunjungan</h2>
-              <span class="card-subtitle-badge">Total 28,656</span>
+              <h2 class="card-title">Distribusi & Funnel Kunjungan</h2>
+              <span class="card-subtitle-badge" id="total-traffic-badge">Total 57,517</span>
             </div>
             <div class="donut-card-content">
               <div class="donut-chart-container" id="cctv-donut-container">
@@ -320,30 +372,31 @@
                     <span class="legend-dot" style="background-color: var(--color-success);"></span>
                     <span>Pengunjung Masuk (IN)</span>
                   </div>
-                  <span class="legend-val">14,684 (51.2%)</span>
+                  <span class="legend-val" id="legend-in-val">29,588 (51.4%)</span>
                 </div>
                 <div class="legend-row">
                   <div class="legend-left">
                     <span class="legend-dot" style="background-color: var(--color-primary);"></span>
                     <span>Pengunjung Keluar (OUT)</span>
                   </div>
-                  <span class="legend-val">13,972 (48.8%)</span>
+                  <span class="legend-val" id="legend-out-val">27,929 (48.6%)</span>
                 </div>
-                <div class="legend-row" style="margin-top:6px;padding-top:6px;border-top:1px dashed var(--color-border);">
-                  <div class="legend-left">
-                    <span class="legend-dot" style="background-color: var(--color-warning);"></span>
-                    <span>Estimasi di Dalam Resto</span>
+                <div class="funnel-summary-box">
+                  <div class="funnel-title">Ringkasan Funnel 3 Zona:</div>
+                  <div class="funnel-steps">
+                    <span>🚪 Pintu: 29.5k</span> → 
+                    <span>🪑 Meja: 10.5k Sesi</span> → 
+                    <span>💳 Kasir: 9.9k Kunjungan</span>
                   </div>
-                  <span class="legend-val" style="color:var(--color-primary);font-weight:800;">712 Orang</span>
                 </div>
               </div>
             </div>
           </div>
 
           <!-- Card 3: Status Antrean Kasir Saat Ini -->
-          <div class="card">
+          <div class="card" id="queue-monitor-card">
             <div class="card-header">
-              <h2 class="card-title">Zona Antrean Kasir</h2>
+              <h2 class="card-title">Status Antrean Kasir</h2>
               <span class="status-badge meeting" id="queue-status-badge">
                 <span class="dot"></span>
                 <span>4 Orang (Waspada)</span>
@@ -359,7 +412,7 @@
                 <div class="gauge-track">
                   <div class="gauge-bar" style="width: 80%; background-color: var(--color-warning);"></div>
                 </div>
-                <div class="gauge-caption">Alert aktif jika jumlah orang ≥ 5</div>
+                <div class="gauge-caption">Alert antrean panjang aktif jika orang di zona ≥ 5</div>
               </div>
 
               <div class="queue-metrics-list">
@@ -382,8 +435,8 @@
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
                     </div>
                     <div>
-                      <div class="q-label">Grace Period ID:</div>
-                      <div class="q-sub">Toleransi hilang frame</div>
+                      <div class="q-label">Lost Grace Period:</div>
+                      <div class="q-sub">Toleransi oklusi kamera</div>
                     </div>
                   </div>
                   <div class="q-metric-val">3 detik</div>
@@ -407,11 +460,114 @@
 
         </section>
 
-        <!-- Row 3: 2 Cards (Grafik Pengunjung per Jam & Tren Antrean) -->
+        <!-- Row 3: Pemantauan Okupansi Meja Restoran (Zona Meja) -->
+        <section class="card table-monitor-section" id="tables-section">
+          <div class="card-header">
+            <div>
+              <div class="card-title">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0EA5E9" stroke-width="2"><rect x="3" y="6" width="18" height="6" rx="2"/><path d="M5 12v7"/><path d="M19 12v7"/><path d="M9 12v3"/><path d="M15 12v3"/></svg>
+                <span>Pemantauan Meja Restoran (TableTracker Logika Murni)</span>
+              </div>
+              <span class="card-subtext">Pelacakan okupansi meja, durasi makan pengunjung, dan toleransi deteksi hilang</span>
+            </div>
+            <div class="table-status-pill">
+              <span class="dot-green"></span>
+              <span>2 / 2 Meja Terisi (100% Saat Ini)</span>
+            </div>
+          </div>
+
+          <div class="tables-overview-grid">
+            
+            <!-- Meja 1 Card -->
+            <div class="table-unit-card">
+              <div class="table-unit-header">
+                <div class="table-unit-title">
+                  <span class="table-badge-num">M1</span>
+                  <div>
+                    <h4>Meja 1 (Kapasitas 4 Orang)</h4>
+                    <span class="table-sub-info">Poligon: [600,150]–[900,400]</span>
+                  </div>
+                </div>
+                <span class="table-status-tag occupied">TERISI</span>
+              </div>
+
+              <div class="table-unit-body">
+                <div class="table-stat-row">
+                  <span>Durasi Duduk Saat Ini:</span>
+                  <strong style="color:var(--color-primary);">42 Menit</strong>
+                </div>
+                <div class="table-stat-row">
+                  <span>Total Sesi Tersimpan:</span>
+                  <strong>5,262 Sesi</strong>
+                </div>
+                <div class="table-stat-row">
+                  <span>Rata-rata Durasi Pengunjung:</span>
+                  <strong>54.6 Menit</strong>
+                </div>
+              </div>
+
+              <div class="table-progress-bar">
+                <div class="table-progress-fill" style="width: 77%;"></div>
+              </div>
+              <div class="table-unit-foot">Ambang Dwell: ≥30s | Grace Hilang: 20s</div>
+            </div>
+
+            <!-- Meja 2 Card -->
+            <div class="table-unit-card">
+              <div class="table-unit-header">
+                <div class="table-unit-title">
+                  <span class="table-badge-num">M2</span>
+                  <div>
+                    <h4>Meja 2 (Kapasitas 4 Orang)</h4>
+                    <span class="table-sub-info">Poligon: [600,450]–[900,700]</span>
+                  </div>
+                </div>
+                <span class="table-status-tag occupied">TERISI</span>
+              </div>
+
+              <div class="table-unit-body">
+                <div class="table-stat-row">
+                  <span>Durasi Duduk Saat Ini:</span>
+                  <strong style="color:var(--color-primary);">28 Menit</strong>
+                </div>
+                <div class="table-stat-row">
+                  <span>Total Sesi Tersimpan:</span>
+                  <strong>5,247 Sesi</strong>
+                </div>
+                <div class="table-stat-row">
+                  <span>Rata-rata Durasi Pengunjung:</span>
+                  <strong>54.1 Menit</strong>
+                </div>
+              </div>
+
+              <div class="table-progress-bar">
+                <div class="table-progress-fill" style="width: 52%;"></div>
+              </div>
+              <div class="table-unit-foot">Ambang Dwell: ≥30s | Grace Hilang: 20s</div>
+            </div>
+
+            <!-- Metrik Logika & Integritas Data Meja -->
+            <div class="table-rules-card">
+              <div class="rules-card-title">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Aturan Logika Meja (AGENTS.md)</span>
+              </div>
+              <ul class="rules-list">
+                <li><strong>min_dwell_sec (30s)</strong>: Orang yang sekadar lewat dekat meja tidak dicatat sebagai sesi duduk.</li>
+                <li><strong>leave_grace_sec (20s)</strong>: Jika tertutup pelayan sesaat, status tetap TERISI & sesi tidak pecah.</li>
+                <li><strong>Pencatatan table_sessions</strong>: Disimpan saat orang benar-benar pergi dengan durasi akurat.</li>
+                <li><strong>Etika & Privasi</strong>: Tidak ada penilaian individu pelayan atau pengenalan wajah.</li>
+              </ul>
+            </div>
+
+          </div>
+        </section>
+
+        <!-- Row 4: 2 Cards (Grafik Pengunjung per Jam & Tren Antrean) -->
         <section class="row-team-activity">
           
           <!-- Card 1: Grafik Pengunjung per Jam (08:00 - 22:00) -->
-          <div class="card">
+          <div class="card" id="visitors-section">
             <div class="card-header">
               <div>
                 <h2 class="card-title">Trafik Pengunjung per Jam</h2>
@@ -429,7 +585,7 @@
           </div>
 
           <!-- Card 2: Tren Panjang Antrean & Rata-rata Waktu Tunggu -->
-          <div class="card">
+          <div class="card" id="queue-section">
             <div class="card-header">
               <div>
                 <h2 class="card-title">Tren Antrean & Waktu Tunggu</h2>
@@ -442,13 +598,13 @@
             </div>
 
             <div class="chart-container-cctv" id="queue-trend-chart">
-              <!-- Queue trend chart injected here -->
+              <!-- Dual bar: Antrean (oranye) & Waktu Tunggu (ungu) injected here -->
             </div>
           </div>
 
         </section>
 
-        <!-- Row 4: Analisis Jam Sibuk Akhir Pekan & Saran Penambahan Pegawai -->
+        <!-- Row 5: Analisis Jam Sibuk Akhir Pekan & Saran Penambahan Pegawai -->
         <section class="card busy-analysis-card" id="busy-hours-section">
           <div class="busy-card-head">
             <div class="busy-head-info">
@@ -499,7 +655,7 @@
           </div>
         </section>
 
-        <!-- Row 5: Log Event & Alert Terkini (Real-time Feed dari Database) -->
+        <!-- Row 6: Log Event & Alert Terkini (Real-time Feed dari Database) -->
         <section class="card" id="alerts-section">
           <div class="card-header">
             <div>
@@ -509,7 +665,7 @@
               </h2>
               <span class="card-subtext">Menampilkan riwayat alert antrean panjang dan waktu tunggu dari database</span>
             </div>
-            <span class="status-counter-pill">Total 2,257 Alert Tercatat</span>
+            <span class="status-counter-pill" id="alerts-counter-pill">Total 4,551 Alert Tercatat</span>
           </div>
 
           <div class="table-responsive">
@@ -535,9 +691,9 @@
 
   <!-- Modal Konfigurasi Parameter (config.json) -->
   <div class="modal-overlay" id="config-modal" role="dialog" aria-modal="true">
-    <div class="modal-box" style="width: 580px;">
+    <div class="modal-box" style="width: 620px;">
       <div class="modal-head">
-        <h3>Parameter Konfigurasi (config.json)</h3>
+        <h3>Parameter Konfigurasi Restoran (config.json)</h3>
         <button class="modal-close" id="config-modal-close">&times;</button>
       </div>
 
@@ -545,16 +701,16 @@
         <div class="config-group">
           <label>Sumber Video / Stream RTSP:</label>
           <input type="text" id="cfg-source" value="samples/contoh.mp4" readonly>
-          <small class="cfg-hint">Untuk kamera nyata: ganti dengan URL RTSP ONVIF kamera BARDI.</small>
+          <small class="cfg-hint">Untuk kamera BARDI nyata: gunakan URL RTSP ONVIF (GetStreamUri) dari config.json.</small>
         </div>
 
         <div class="config-grid-2">
           <div class="config-group">
-            <label>Garis Hitung Virtual PT1:</label>
+            <label>Garis Pintu Masuk PT1:</label>
             <input type="text" id="cfg-line-pt1" value="[300, 400]" readonly>
           </div>
           <div class="config-group">
-            <label>Garis Hitung Virtual PT2:</label>
+            <label>Garis Pintu Masuk PT2:</label>
             <input type="text" id="cfg-line-pt2" value="[900, 400]" readonly>
           </div>
         </div>
@@ -572,18 +728,29 @@
 
         <div class="config-grid-2">
           <div class="config-group">
+            <label>Ambang Sesi Meja (table_min_dwell_sec):</label>
+            <input type="number" id="cfg-table-dwell" value="30">
+          </div>
+          <div class="config-group">
+            <label>Grace Hilang Meja (leave_grace_sec):</label>
+            <input type="number" id="cfg-table-grace" value="20">
+          </div>
+        </div>
+
+        <div class="config-grid-2">
+          <div class="config-group">
             <label>Cooldown Alert (detik):</label>
             <input type="number" id="cfg-cooldown" value="60">
           </div>
           <div class="config-group">
-            <label>Grace Period ID Hilang (detik):</label>
+            <label>Grace Period Kasir (lost_grace_sec):</label>
             <input type="number" id="cfg-grace" value="3">
           </div>
         </div>
 
         <div class="config-grid-2">
           <div class="config-group">
-            <label>Model YOLO:</label>
+            <label>Model YOLOv8:</label>
             <input type="text" id="cfg-yolo" value="yolov8n.pt" readonly>
           </div>
           <div class="config-group">
