@@ -17,7 +17,7 @@ Dokumen ini merupakan panduan referensi cepat (*cheatsheet*) untuk seluruh perin
 | **Simulasi Data** | `python simulate.py` | Isi database `data.db` dengan simulasi realistis 4 minggu |
 | **Deteksi CCTV** | `python monitor.py` | Jalankan deteksi orang YOLOv8 + pelacakan 3 zona (tekan `q` untuk keluar) |
 | **Streamlit** | `streamlit run dashboard.py` | Buka Dashboard Manajer Python di [http://localhost:8501](http://localhost:8501) |
-| **Web Dashboard** | `python -m http.server 3000` | Buka Modern Web Dashboard di [http://localhost:3000](http://localhost:3000) |
+| **Web Dashboard** | `python server.py` (atau `menu.py` opsi 3) | Buka Modern Web Dashboard di [http://localhost:3000](http://localhost:3000) |
 | **Menu Interaktif**| `python menu.py` | Buka menu konsol interaktif untuk memilih perintah |
 
 ---
@@ -137,11 +137,11 @@ streamlit run dashboard.py
 Menampilkan desain *soft SaaS*, simulasi CCTV interaktif, KPI pengunjung, slider persentil jam sibuk, dan saran staf:
 
 ```bash
-# Jalankan web server lokal di port 3000
-python -m http.server 3000
+# Jalankan web server resmi VisionCCTV (port 3000)
+python server.py
 ```
-> **Akses di browser:** Buka alamat **[http://localhost:3000](http://localhost:3000)**  
-> *(Atau klik ganda file `flowtask-dashboard/index.html` langsung dari File Explorer tanpa server).*
+> **Akses di browser:** Otomatis membuka alamat **[http://localhost:3000](http://localhost:3000)**  
+> *(Atau pilih opsi [3] di `python menu.py`, atau klik ganda `flowtask-dashboard/index.html` langsung dari File Explorer).*
 
 ---
 

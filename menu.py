@@ -13,6 +13,13 @@ import os
 import sys
 import subprocess
 import webbrowser
+import socket
+
+
+def is_port_in_use(port: int) -> bool:
+    """Periksa apakah port lokal sedang aktif/digunakan."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
 
 
 def clear_screen():
@@ -69,15 +76,9 @@ def main():
             input("\nTekan Enter untuk kembali ke menu...")
 
         elif choice == "3":
-            print("\n[+] Menjalankan Web Dashboard pada port 3000...")
-            print("[+] Membuka http://localhost:3000 di browser...")
+            print("\n[+] Menjalankan Web Dashboard Server (server.py)...")
             try:
-                webbrowser.open("http://localhost:3000")
-            except Exception:
-                pass
-            print("[+] Tekan Ctrl + C di terminal untuk menghentikan server web.\n")
-            try:
-                subprocess.run([sys.executable, "-m", "http.server", "3000"])
+                subprocess.run([sys.executable, "server.py"])
             except KeyboardInterrupt:
                 print("\nServer web dihentikan.")
             input("\nTekan Enter untuk kembali ke menu...")

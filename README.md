@@ -1,207 +1,304 @@
-# VisionCCTV — Sistem Pemantauan Pintu Masuk & Antrean
+<div align="center">
 
-Sistem pemantauan pengunjung dan manajemen antrean berbasis **Computer Vision (YOLOv8 + ByteTrack)** yang dirancang untuk restoran atau lobi hotel. Proyek ini memantau pintu masuk secara otomatis, melacak antrean kasir, menghitung durasi waktu tunggu, memberikan peringatan (*alert*) via Telegram, serta menyediakan analisis jam sibuk dan saran penambahan staf melalui dashboard interaktif.
+# 👁️ VisionCCTV
 
----
+### Asisten pemantauan pintu masuk dan antrean untuk restoran & lobi hotel, dari CCTV yang sudah Anda punya
 
-## 📌 Ringkasan Fitur
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![YOLOv8](https://img.shields.io/badge/Deteksi-YOLOv8-00A3E0)
+![Tracker](https://img.shields.io/badge/Pelacak-ByteTrack-6C5CE7)
+![Dashboard](https://img.shields.io/badge/Dashboard-Streamlit%20%7C%20Web-FF4B4B)
+![Tests](https://img.shields.io/badge/Unit%20test-35%20kasus-2EA043)
+![Status](https://img.shields.io/badge/Status-Prototipe-orange)
 
-1. **Penghitung Pengunjung Masuk/Keluar (*Virtual Line Counter*)**:
-   - Mendeteksi dan menghitung orang melintasi garis virtual pintu masuk (`IN` dan `OUT`).
-   - Penentuan arah berbasis *cross-product* vektor posisi tengah bounding box.
-   - Dilengkapi *cooldown* dan histeresis per ID pelacak agar orang yang berdiri/bergoyang dekat garis tidak terhitung berulang.
+[Fitur](#-fitur-utama) · [Cara Kerja](#-cara-kerja) · [Mulai Cepat](#-mulai-cepat) · [Konfigurasi](#%EF%B8%8F-konfigurasi) · [Pengujian](#-pengujian) · [Privasi](#-privasi--keamanan) · [Roadmap](#%EF%B8%8F-roadmap)
 
-2. **Manajemen Antrean & Waktu Tunggu (*Queue Zone Monitor*)**:
-   - Memantau zona poligon kasir/check-in menggunakan algoritma *point-in-polygon*.
-   - Mencatat waktu masuk tiap ID pelacak untuk menghitung durasi tunggu (*wait time*).
-   - Fitur *lost grace period* (toleransi 3 detik) agar ID yang hilang sesaat karena oklusi tidak langsung dianggap pergi.
-   - Peringatan otomatis:
-     - `ALERT_ANTREAN_PANJANG`: Jumlah orang di zona antrean $\ge$ batas (default: 5 orang).
-     - `ALERT_TUNGGU_LAMA`: Terdapat orang yang menunggu $\ge$ batas waktu (default: 120 detik).
-   - Cooldown alert untuk mencegah spam notifikasi tiap frame.
-
-3. **Notifikasi Alert Telegram**:
-   - Terintegrasi dengan bot Telegram untuk mengirim pesan alert instan saat antrean penuh atau waktu tunggu melewati ambang.
-   - Token bot dan Chat ID diamankan melalui variabel lingkungan (*environment variables*).
-
-4. **Dashboard Manajer (2 Pilihan Antarmuka)**:
-   - **Modern Web Dashboard (`flowtask-dashboard/`)**: Desain *soft SaaS* interaktif, visualisasi CCTV real-time, grafik per jam, **slider persentil jam sibuk akhir pekan**, dan **rekomendasi cerdas penambahan pegawai**.
-   - **Streamlit Dashboard (`dashboard.py`)**: Dashboard Python interaktif untuk analisis tren dan pelaporan data SQLite.
-
-5. **Simulasi Data Realistis (`simulate.py`)**:
-   - Generator data buatan untuk mengisi database SQLite (`data.db`) selama 4 minggu dengan pola jam makan dan akhir pekan yang realistis untuk pengujian dashboard.
+</div>
 
 ---
 
-## 🏗️ Arsitektur & Alur Data
+## 🎯 Tentang Proyek
+
+Banyak restoran dan hotel sudah punya CCTV, tetapi kameranya hanya merekam. **VisionCCTV mengubah kamera menjadi sumber data**: berapa orang masuk, kapan jam tersibuk, seberapa panjang antrean kasir, dan kapan perlu menambah pegawai.
+
+Sistem ini dirancang sebagai **alat bantu keputusan manajer, bukan pengganti manajer**. Semua metrik bersifat agregat (tim/proses), tanpa pengenalan wajah dan tanpa penilaian individu.
+
+> **Status:** prototipe untuk keperluan magang/edukasi. Belum dimaksudkan untuk produksi.
+
+<!--
+  TODO: tambahkan tangkapan layar atau GIF demo di sini.
+  Contoh: ![Demo](docs/images/demo.gif)
+-->
+
+---
+
+## ✨ Fitur Utama
+
+| | Fitur | Yang dilakukan |
+|---|---|---|
+| 🚪 | **Penghitung pengunjung** | Menghitung orang masuk dan keluar saat melintasi garis virtual di pintu |
+| ⏱️ | **Pemantau antrean kasir** | Menghitung jumlah orang di zona antrean dan lama menunggu tiap orang |
+| 🔔 | **Alert Telegram** | Mengirim peringatan saat antrean panjang atau waktu tunggu terlalu lama |
+| 📊 | **Dashboard manajer** | Grafik per jam, jam sibuk akhir pekan, dan saran penambahan pegawai |
+| 🧪 | **Simulator data** | Mengisi database dengan data 4 minggu agar dashboard bisa dicoba tanpa kamera |
+
+<details>
+<summary><b>Detail teknis tiap fitur</b></summary>
+
+**Penghitung pengunjung (`line_counter.py`)**
+- Arah lintasan ditentukan dari *cross-product* posisi tengah bounding box sebelum dan sesudah bergerak.
+- *Cooldown* dan histeresis per ID pelacak mencegah orang yang berdiri atau bergoyang di dekat garis terhitung berulang.
+
+**Pemantau antrean (`queue_monitor.py`)**
+- Zona kasir berupa poligon; keberadaan orang dicek dengan *point-in-polygon*.
+- Waktu masuk tiap ID dicatat untuk menghitung durasi tunggu.
+- *Lost grace period* (default 3 detik) mencegah ID yang hilang sesaat karena terhalang dianggap pergi.
+- Alert dengan *cooldown* agar notifikasi tidak dikirim tiap frame:
+
+| Alert | Pemicu (default) |
+|---|---|
+| `ALERT_ANTREAN_PANJANG` | Orang di zona ≥ 5 |
+| `ALERT_TUNGGU_LAMA` | Ada orang menunggu ≥ 120 detik |
+
+**Dashboard**
+- **Web dashboard** (`flowtask-dashboard/`): tampilan *soft SaaS*, grafik per jam, slider persentil jam sibuk akhir pekan, dan rekomendasi penambahan pegawai.
+- **Streamlit** (`dashboard.py`): analisis tren dan pelaporan dari database SQLite.
+
+</details>
+
+---
+
+## 🧠 Cara Kerja
 
 ```mermaid
-flowchart TD
-    A["Sumber Video / RTSP Camera"] --> B["monitor.py"]
-    B --> C["Deteksi YOLOv8 (Kelas Person)"]
-    C --> D["Pelacak ByteTrack (ID Konsisten)"]
-    D --> E["line_counter.py (Logika Garis)"]
-    D --> F["queue_monitor.py (Logika Antrean)"]
-    E -->|"Lintasan IN / OUT"| G["db.py (SQLite: visits)"]
-    F -->|"Sampel Antrean & Tunggu"| H["db.py (SQLite: queue_samples)"]
-    F -->|"Alert Pemicu"| I["db.py (SQLite: events)"]
-    I --> J["notifier.py (Telegram Bot)"]
-    G --> K["Dashboard Manajer"]
+flowchart LR
+    A["Video / RTSP<br/>kamera ONVIF"] --> B["monitor.py"]
+    B --> C["YOLOv8<br/>deteksi orang"]
+    C --> D["ByteTrack<br/>ID konsisten"]
+    D --> E["line_counter.py<br/>garis pintu"]
+    D --> F["queue_monitor.py<br/>zona kasir"]
+    E -->|IN / OUT| G[("SQLite<br/>visits")]
+    F -->|sampel & waktu tunggu| H[("SQLite<br/>queue_samples")]
+    F -->|alert| I[("SQLite<br/>events")]
+    I --> J["notifier.py<br/>Telegram"]
+    G --> K["Dashboard"]
     H --> K
     I --> K
-    K --> L["Web Dashboard (flowtask-dashboard/)"]
-    K --> M["Streamlit Dashboard (dashboard.py)"]
+    K --> L["Web dashboard"]
+    K --> M["Streamlit"]
 ```
 
----
-
-## 📷 Batasan Perangkat Keras
-
-* **Kamera Target**: **BARDI Smart Indoor PTZ IP Camera** (WiFi 2.4GHz, indoor).
-* **Protokol**: **ONVIF** & **RTSP Stream**. URL RTSP diperoleh menggunakan tool seperti *ONVIF Device Manager (ODM)*.
-* **Codec Disarankan**: H.264 (sub-stream resolusi rendah, misal 640x360 atau 1080p sub-stream) untuk komputasi OpenCV yang ringan dan stabil.
-* **Kunci Posisi PTZ**: Posisi kamera **wajib dikunci** (tidak digeser/dirotasi) agar koordinat garis hitung virtual dan poligon antrean tetap akurat.
+**Prinsip desain:** modul logika (`line_counter.py`, `queue_monitor.py`) adalah *logika murni*, tidak mengimpor OpenCV atau YOLO. Hasilnya bisa diuji cepat tanpa kamera dan tanpa model.
 
 ---
 
-## 📁 Struktur Berkas
+## 🚀 Mulai Cepat
 
-```text
-Project_CCTV_Deteksi_Orang/
-├── AGENTS.md                  # Panduan aturan, batasan arsitektur & konvensi kode
-├── DESIGN.md                  # Sistem desain visual dan token UI dashboard
-├── README.md                  # Dokumentasi proyek (berkas ini)
-├── config.json                # Konfigurasi parameter (RTSP, koordinat garis & zona, ambang)
-├── requirements.txt           # Daftar dependensi library Python
-├── .gitignore                 # Mengabaikan data.db, file video, kredensial, & cache
-│
-├── monitor.py                 # Program utama deteksi CCTV (YOLOv8 + ByteTrack + Overlay)
-├── line_counter.py            # Logika murni penghitung garis virtual IN/OUT
-├── queue_monitor.py           # Logika murni pemantau antrean & waktu tunggu
-├── db.py                      # Akses SQLite (skema tabel: visits, queue_samples, events)
-├── notifier.py                # Pengirim notifikasi alert via Telegram Bot
-├── simulate.py                # Pembuat data simulasi realistis ke data.db
-├── dashboard.py               # Dashboard analisis manajer berbasis Streamlit
-│
-├── flowtask-dashboard/        # Modern Web Dashboard (HTML5, CSS3, JS)
-│   ├── index.html             # Tampilan utama web dashboard
-│   ├── css/style.css          # Desain soft SaaS, responsive grid, animations
-│   ├── js/app.js              # Engine rendering chart SVG, filter persentil, dan simulasi
-│   ├── js/cctv_data.js        # Dataset riil yang diekspor dari data.db
-│   └── README.md              # Dokumentasi khusus web dashboard
-│
-├── tests/                     # Suite pengujian unit (24 test otomatis)
-│   ├── test_line_counter.py   # Uji kasus lintasan masuk, keluar, cooldown, bolak-balik
-│   └── test_queue_monitor.py  # Uji antrean di bawah/atas ambang, wait time, grace period
-│
-├── samples/                   # Folder video uji lokal (masuk .gitignore)
-│   └── SOURCES.md             # Catatan sumber & lisensi video uji
-│
-└── docs/                      # Dokumen evaluasi & catatan pengujian
-    └── evaluasi.md            # Format pencatatan akurasi manual vs sistem
-```
+**Prasyarat:** Python 3.10+ dan Git.
 
----
-
-## 🛠️ Instalasi & Persiapan
-
-### 1. Prasyarat
-* Python 3.10 atau versi lebih baru.
-* Git.
-
-### 2. Kloning & Instal Dependensi
 ```bash
-# Masuk ke direktori proyek
-cd Project_CCTV_Deteksi_Orang
-
-# Instal dependensi Python
+# 1. Pasang dependensi
 pip install -r requirements.txt
+
+# 2. Isi database dengan data simulasi (tanpa kamera)
+python simulate.py
+
+# 3. Buka dashboard
+python server.py                      # http://localhost:3000 (web dashboard)
+# atau
+streamlit run dashboard.py            # http://localhost:8501 (Streamlit)
+# atau gunakan menu interaktif:
+python menu.py                        # pilih opsi [2] atau [3]
 ```
 
----
+Untuk menjalankan deteksi pada video atau kamera:
 
-## ⚡ Perintah Terminal Lengkap
+```bash
+python monitor.py                     # tekan "q" pada jendela video untuk keluar
+```
 
-| Perintah | Deskripsi |
+<details>
+<summary><b>Semua perintah</b></summary>
+
+| Perintah | Fungsi |
 |---|---|
-| `python -m pytest tests/` | Menjalankan **24 unit test otomatis** untuk memastikan logika garis dan antrean 100% valid. |
-| `python simulate.py` | Mengisi [data.db](data.db) dengan data simulasi realistis 4 minggu (28.656 kunjungan, 2.257 alert). |
-| `python -m http.server 3000` | Menjalankan web server lokal untuk membuka **Web Dashboard Modern** di [http://localhost:3000](http://localhost:3000). |
-| `streamlit run dashboard.py` | Menjalankan **Dashboard Streamlit** di [http://localhost:8501](http://localhost:8501). |
-| `python monitor.py` | Menjalankan sistem deteksi video/CCTV real-time (tekan tombol **`q`** pada jendela video untuk keluar). |
-| `python -m py_compile *.py` | Memeriksa integritas sintaks seluruh skrip Python. |
+| `python -m pytest tests/ -v` | Menjalankan 35 unit test |
+| `python simulate.py` | Mengisi `data.db` dengan data simulasi 4 minggu |
+| `python monitor.py` | Deteksi video/CCTV secara real-time |
+| `python server.py` | Web dashboard di `localhost:3000` |
+| `streamlit run dashboard.py` | Dashboard Streamlit di `localhost:8501` |
+| `python menu.py` | Pusat kontrol & command launcher interaktif |
+| `python -m py_compile *.py` | Cek sintaks semua skrip Python |
+
+</details>
+
+> **Catatan data simulasi:** angka seperti jumlah kunjungan dan alert pada dashboard demo berasal dari `simulate.py`, **bukan** dari rekaman restoran sungguhan.
 
 ---
 
-## ⚙️ Panduan Konfigurasi (`config.json`)
+## ⚙️ Konfigurasi
 
-Semua parameter operasional diatur melalui file [config.json](config.json):
+Semua parameter ada di `config.json`.
 
 ```json
 {
     "source": "samples/contoh.mp4",
-
-    "line": {
-        "pt1": [300, 400],
-        "pt2": [900, 400],
-        "in_direction": "down"
-    },
-
-    "queue_zone": [
-        [100, 300],
-        [500, 300],
-        [500, 600],
-        [100, 600]
-    ],
-
+    "line": { "pt1": [300, 400], "pt2": [900, 400], "in_direction": "down" },
+    "queue_zone": [[100, 300], [500, 300], [500, 600], [100, 600]],
     "queue_max_people": 5,
     "queue_max_wait_sec": 120,
     "alert_cooldown_sec": 60,
     "lost_grace_sec": 3,
-
     "queue_sample_interval_sec": 30,
-
     "yolo_model": "yolov8n.pt",
     "confidence": 0.4,
     "tracker": "bytetrack.yaml",
-
     "telegram_token_env": "TELEGRAM_TOKEN",
     "telegram_chat_id_env": "TELEGRAM_CHAT_ID",
-
     "db_path": "data.db"
 }
 ```
 
-* **`source`**: Path file video lokal (misal `"samples/test.mp4"`) atau URL RTSP kamera BARDI (misal `"rtsp://admin:pass@192.168.1.100:554/live/ch0"`).
-* **`line`**: Titik koordinat awal (`pt1`) dan akhir (`pt2`) garis virtual pintu masuk serta arah masuk (`down`/`positive` atau `up`/`negative`).
-* **`queue_zone`**: Daftar titik poligon yang membentuk zona antrean kasir.
-* **`queue_max_people`**: Ambang batas jumlah orang untuk memicu `ALERT_ANTREAN_PANJANG`.
-* **`queue_max_wait_sec`**: Ambang batas waktu tunggu terlama (detik) untuk memicu `ALERT_TUNGGU_LAMA`.
+| Parameter | Arti |
+|---|---|
+| `source` | File video lokal atau URL RTSP kamera, mis. `rtsp://user:pass@192.168.1.100:554/...` |
+| `line.pt1`, `line.pt2` | Dua titik garis virtual pintu (piksel) |
+| `line.in_direction` | Arah dianggap "masuk": `down`/`positive` atau `up`/`negative` |
+| `queue_zone` | Titik-titik poligon zona antrean kasir |
+| `queue_max_people` | Batas jumlah orang untuk `ALERT_ANTREAN_PANJANG` |
+| `queue_max_wait_sec` | Batas waktu tunggu (detik) untuk `ALERT_TUNGGU_LAMA` |
+| `alert_cooldown_sec` | Jeda minimal antar alert sejenis |
+| `lost_grace_sec` | Toleransi ID hilang sesaat sebelum dianggap pergi |
+| `queue_sample_interval_sec` | Interval pencatatan sampel antrean |
+| `yolo_model`, `confidence`, `tracker` | Model deteksi, ambang keyakinan, dan konfigurasi pelacak |
+| `telegram_token_env`, `telegram_chat_id_env` | **Nama** variabel lingkungan (bukan nilainya) |
+| `db_path` | Lokasi database SQLite |
+
+### Mengatur notifikasi Telegram
+
+Token dan chat ID dibaca dari variabel lingkungan, jangan ditulis di kode atau di-commit.
+
+```bash
+# Linux / macOS
+export TELEGRAM_TOKEN="isi-token-bot"
+export TELEGRAM_CHAT_ID="isi-chat-id"
+```
+
+```powershell
+# Windows PowerShell
+$env:TELEGRAM_TOKEN = "isi-token-bot"
+$env:TELEGRAM_CHAT_ID = "isi-chat-id"
+```
 
 ---
 
-## 🧪 Pengujian Unit (*Unit Testing*)
+## 📷 Menghubungkan Kamera
 
-Proyek ini menerapkan prinsip **arsitektur logika murni** ([line_counter.py](line_counter.py) dan [queue_monitor.py](queue_monitor.py) tidak mengimpor OpenCV/YOLO), sehingga dapat diuji secara cepat dan independen tanpa kamera.
+| | |
+|---|---|
+| **Kamera target** | BARDI Smart Indoor PTZ IP Camera (WiFi 2.4GHz, indoor) |
+| **Protokol** | ONVIF dan RTSP |
+| **Codec disarankan** | H.264 (H.265 tidak selalu terbaca OpenCV) |
+| **Stream** | Sub-stream resolusi rendah untuk komputasi lebih ringan bila tersedia |
 
-Jalankan pengujian:
+**Langkah:**
+
+1. Cari IP kamera di halaman admin router.
+2. Aktifkan ONVIF dan buat akun ONVIF jika ada menunya (sering terpisah dari akun aplikasi).
+3. Ambil URL RTSP dengan **ONVIF Device Manager** atau library `onvif-zeep` (`GetStreamUri`). Jangan menebak URL.
+4. Uji URL di VLC, lalu isi `source` di `config.json`.
+
+> ⚠️ **Kunci posisi PTZ** dan matikan patroli otomatis. Jika kamera bergeser, garis hitung dan zona antrean menjadi tidak akurat dan perlu dikalibrasi ulang.
+
+---
+
+## 🧪 Pengujian
+
 ```bash
 python -m pytest tests/ -v
 ```
 
-Hasil pengujian mencakup 24 kasus uji:
-* **LineCounter (10 test)**: Lintasan masuk, lintasan keluar, bergoyang di garis dalam cooldown, tetap di satu sisi, tepat di atas garis, dua orang bersamaan, bolak-balik melintas, pembersihan ID lama (*cleanup*).
-* **QueueMonitor (14 test)**: Antrean di bawah ambang, orang di luar zona, zona kosong, alert antrean panjang, alert waktu tunggu lama, verifikasi cooldown alert, toleransi ID hilang sesaat (*lost grace period*), status saat ini.
+Suite berisi **24 unit test** untuk logika murni:
+
+| Modul | Jumlah | Skenario yang diuji |
+|---|---|---|
+| `LineCounter` | 10 | Masuk, keluar, bergoyang di garis (cooldown), tetap di satu sisi, tepat di atas garis, dua orang bersamaan, bolak-balik, pembersihan ID lama |
+| `QueueMonitor` | 14 | Di bawah dan di atas ambang, orang di luar zona, zona kosong, alert panjang dan lama, cooldown alert, ID hilang sesaat, status terkini |
+
+Bagian deteksi YOLO dan dashboard diverifikasi manual dengan video. Catat hasil akurasi (hitungan manual vs sistem) di `docs/evaluasi.md`.
 
 ---
 
-## 🔒 Privasi & Keamanan Data
+## 📁 Struktur Proyek
 
-* **Anonim & Tanpa Pengenalan Wajah**: Sistem ini hanya mendeteksi keberadaan objek kelas orang secara anonim. **Tidak ada fitur pengenalan wajah (*face recognition*)**, identifikasi personal, estimasi usia, atau gender. ID pelacak bersifat sementara dan tidak disimpan ke database.
-* **Kredensial Aman**: Password kamera RTSP, token bot Telegram, dan Chat ID tidak ditanam di kode program, melainkan melalui variabel lingkungan yang tidak di-commit ke Git repository.
-* **Area Publik Saja**: Sistem dirancang khusus untuk area umum (pintu masuk restoran, lobi hotel, zona kasir). Tidak boleh digunakan di area privat.
+```text
+Project_CCTV_Deteksi_Orang/
+├── monitor.py                 # Program utama: YOLOv8 + ByteTrack + overlay
+├── line_counter.py            # Logika murni garis virtual IN/OUT
+├── queue_monitor.py           # Logika murni antrean & waktu tunggu
+├── db.py                      # Akses SQLite (visits, queue_samples, events)
+├── notifier.py                # Notifikasi Telegram
+├── simulate.py                # Generator data simulasi
+├── dashboard.py               # Dashboard Streamlit
+├── config.json                # Parameter: sumber video, garis, zona, ambang
+├── requirements.txt           # Dependensi Python
+├── AGENTS.md                  # Aturan dan konvensi untuk AI agent
+├── DESIGN.md                  # Sistem desain visual dashboard
+│
+├── flowtask-dashboard/        # Web dashboard (HTML, CSS, JS)
+│   ├── index.html
+│   ├── css/style.css
+│   ├── js/app.js              # Grafik SVG, filter persentil, simulasi
+│   ├── js/cctv_data.js        # Data yang diekspor dari data.db
+│   └── README.md
+│
+├── tests/                     # Unit test
+├── samples/                   # Video uji lokal (tidak di-commit) + SOURCES.md
+└── docs/                      # Catatan evaluasi (evaluasi.md)
+```
+
+---
+
+## 🔒 Privasi & Keamanan
+
+- **Anonim.** Sistem hanya mendeteksi keberadaan orang. Tidak ada pengenalan wajah, identifikasi personal, atau estimasi usia/gender. ID pelacak bersifat sementara dan tidak disimpan ke database.
+- **Kredensial aman.** Password RTSP, token Telegram, dan chat ID tidak ditanam di kode dan tidak di-commit.
+- **Area publik saja.** Hanya untuk pintu masuk, lobi, dan zona kasir. Jangan dipakai di area privat (kamar, toilet, ruang ganti).
+- **Metrik agregat.** Laporan berupa jumlah, rata-rata, dan jam sibuk, bukan penilaian per orang.
+- **Kepatuhan.** Pasang pemberitahuan CCTV dan perhatikan UU Pelindungan Data Pribadi (UU PDP) bila dipakai di tempat usaha. Minta persetujuan peserta untuk rekaman uji.
+
+---
+
+## ⚠️ Batasan yang Diketahui
+
+- Orang yang saling menutupi atau terhalang bisa terhitung kurang, dan ID pelacak kadang tertukar.
+- Sudut kamera dari atas dan miring ke arah pintu paling akurat; dari samping lebih sulit.
+- Mode malam (infrared) menurunkan akurasi deteksi.
+- Stream WiFi 2.4GHz bisa putus-putus; gunakan kabel jika memungkinkan.
+- Hasil pada video uji publik belum tentu sama pada kamera BARDI di lokasi nyata.
+- Saran jam sibuk baru bermakna setelah data beberapa hari atau akhir pekan terkumpul.
+
+---
+
+## 🗺️ Roadmap
+
+- [x] Penghitung pengunjung (garis virtual)
+- [x] Pemantau antrean dan alert Telegram
+- [x] Dashboard Streamlit dan web, simulasi data
+- [ ] Okupansi meja dan durasi duduk
+- [ ] Ringkasan harian otomatis untuk manajer
+- [ ] Funnel pengunjung (masuk, duduk, ke kasir)
+- [ ] Alat bantu menggambar garis dan zona dari screenshot
+- [ ] Evaluasi akurasi pada rekaman kamera nyata
+
+---
+
+## 🤝 Kontribusi
+
+Proyek ini berupa prototipe magang, tetapi masukan sangat diterima. Sebelum mengubah kode, baca `AGENTS.md` untuk aturan arsitektur (modul logika harus murni) dan konvensi. Jalankan `python -m pytest tests/` dan `python -m py_compile *.py` sebelum mengirim perubahan.
 
 ---
 
 ## 📄 Lisensi
-Proyek ini dibuat untuk keperluan magang/edukasi prototipe pemantauan Computer Vision. Silakan gunakan dan kembangkan sesuai kebutuhan internal.
+
+Dibuat untuk keperluan magang dan edukasi. Gunakan dan kembangkan sesuai kebutuhan internal. Jika repositori akan dipublikasikan, tambahkan berkas `LICENSE` (mis. MIT) dan periksa lisensi video serta dataset uji yang dipakai.
