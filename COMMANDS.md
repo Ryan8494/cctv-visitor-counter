@@ -55,7 +55,8 @@ python tools/draw_zones.py samples/contoh.mp4
 > * **`3`** : Mode Poligon Meja Pengunjung (Klik 4 titik sudut per meja: Meja 1, Meja 2, dst.).
 > * **`SPASI`** : Pause / Resume video pada posisi frame yang jelas.
 > * **`s`** : **Simpan seluruh koordinat langsung ke `config.json`**.
-> * **`r`** : Reset / batalkan titik yang sedang diklik.
+> * **`d`** / **`Backspace`** : **Hapus / Undo** (membatalkan 1 titik terakhir yang diklik, atau menghapus garis/zona/meja aktif).
+> * **`r`** : **Reset mode aktif** (menghapus seluruh elemen pada mode yang sedang dipilih).
 > * **`q`** : Keluar dari alat kalibrasi.
 
 ### B. Pengujian Koneksi RTSP Kamera BARDI (`tools/test_stream.py`)

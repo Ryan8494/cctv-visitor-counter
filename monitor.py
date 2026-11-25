@@ -109,6 +109,14 @@ def run():
     fps = cap.get(cv2.CAP_PROP_FPS) or 25.0
     logger.info(f"FPS video: {fps}")
 
+    # Siapkan jendela tampilan proporsional agar pas di layar laptop (tidak zoom/overflow)
+    window_name = "Monitor Restoran & Pengunjung"
+    cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+    vid_w = cap.get(cv2.CAP_PROP_FRAME_WIDTH) or 1920
+    vid_h = cap.get(cv2.CAP_PROP_FRAME_HEIGHT) or 1080
+    scale = min(1100 / vid_w, 620 / vid_h, 1.0)
+    cv2.resizeWindow(window_name, int(vid_w * scale), int(vid_h * scale))
+
     frame_idx = 0
     last_queue_sample_time = -999.0
     last_occ_sample_time = -999.0
@@ -139,6 +147,7 @@ def run():
 
             # Proses hasil deteksi: list (track_id, (cx, cy))
             detections = []
+            table_detections = []
 
             if results and results[0].boxes is not None and results[0].boxes.id is not None:
                 boxes = results[0].boxes
@@ -156,6 +165,12 @@ def run():
                         logger.info(f"Lintasan terdeteksi: ID={track_id} arah={event}")
 
                     detections.append((track_id, (cx, cy)))
+
+                    # Untuk meja: sertakan titik pusat, pundak/dada, dan dudukan
+                    # agar orang duduk menghadap belakang atau condong tetap terdeteksi
+                    table_detections.append((track_id, (cx, cy)))
+                    table_detections.append((track_id, (cx, y1 * 0.7 + y2 * 0.3)))
+                    table_detections.append((track_id, (cx, y1 * 0.3 + y2 * 0.7)))
 
             # 2. Perbarui monitor antrean
             alerts = queue_mon.update(detections, now)
@@ -187,8 +202,8 @@ def run():
                 )
                 last_queue_sample_time = now
 
-            # 3. Perbarui pelacak meja
-            finished_table_sessions = table_tracker.update(detections, now)
+            # 3. Perbarui pelacak meja (menggunakan multi-titik tubuh)
+            finished_table_sessions = table_tracker.update(table_detections, now)
             for session in finished_table_sessions:
                 save_table_session(
                     conn,
@@ -222,7 +237,7 @@ def run():
                 tables_cfg=tables_cfg,
                 results=results,
             )
-            cv2.imshow("Monitor Restoran & Pengunjung", annotated)
+            cv2.imshow(window_name, annotated)
 
             # Tekan 'q' untuk keluar
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -283,18 +298,32 @@ def _draw_overlay(
     table_status = table_tracker.get_status()["tables"]
     for name, pts in tables_cfg.items():
         t_pts = np.array(pts, dtype=np.int32)
+        table_obj = table_tracker.tables.get(name)
         is_occupied = table_status.get(name) == "TERISI"
-        color = (0, 165, 255) if is_occupied else (0, 255, 0)  # oranye jika terisi, hijau jika kosong
+        is_dwelling = (not is_occupied and table_obj and table_obj.first_seen is not None)
+
+        if is_occupied:
+            color = (0, 165, 255)  # oranye jika terisi resmi
+            dur = (now - table_obj.session_start) if (table_obj and table_obj.session_start) else 0
+            label = f"{name}: TERISI ({dur:.0f}s)"
+        elif is_dwelling:
+            color = (0, 255, 255)  # kuning jika sedang proses dwell (baru duduk)
+            dwell = max(0, now - table_obj.first_seen)
+            label = f"{name}: DUDUK ({dwell:.0f}/{table_tracker.min_dwell_sec:.0f}s)"
+        else:
+            color = (0, 255, 0)  # hijau jika kosong
+            label = f"{name}: KOSONG"
 
         table_overlay = annotated.copy()
         cv2.fillPoly(table_overlay, [t_pts], color)
-        cv2.addWeighted(table_overlay, 0.25 if is_occupied else 0.15, annotated, 0.75 if is_occupied else 0.85, 0, annotated)
+        alpha = 0.30 if is_occupied else (0.22 if is_dwelling else 0.12)
+        cv2.addWeighted(table_overlay, alpha, annotated, 1.0 - alpha, 0, annotated)
         cv2.polylines(annotated, [t_pts], True, color, 2)
 
         cx = int(sum(p[0] for p in pts) / len(pts))
         cy = int(sum(p[1] for p in pts) / len(pts))
-        cv2.putText(annotated, f"{name}: {table_status.get(name, 'KOSONG')}",
-                    (cx - 40, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
+        cv2.putText(annotated, label,
+                    (cx - 50, cy), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 2)
 
     # 4. Gambar bounding box dan ID orang
     if results and results[0].boxes is not None and results[0].boxes.id is not None:

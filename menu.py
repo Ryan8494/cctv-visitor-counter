@@ -86,7 +86,14 @@ def main():
         elif choice == "4":
             print("\n[+] Membuka Alat Kalibrasi Zona Visual (draw_zones.py)...")
             print("[+] Tombol: [1] Pintu, [2] Kasir, [3] Meja, [SPASI] Pause, [s] Simpan, [q] Keluar\n")
-            source = input(" Path video (tekan Enter untuk default 'samples/contoh.mp4'): ").strip()
+            cfg_source = "samples/ch05_20260712123214.mp4"
+            try:
+                import json
+                with open("config.json", "r", encoding="utf-8") as f:
+                    cfg_source = json.load(f).get("source", cfg_source)
+            except Exception:
+                pass
+            source = input(f" Path video (tekan Enter untuk default '{cfg_source}'): ").strip()
             cmd = [sys.executable, "tools/draw_zones.py"]
             if source:
                 cmd.append(source)
